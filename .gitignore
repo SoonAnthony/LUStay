@@ -1,5 +1,49 @@
-# gitignore all .env files irrespective of their location in the project
-*.env
-backend/venv/
-# Ignore the .vscode directory
-.vscode/
+# =========================
+# Python cache & compiled files
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# =========================
+# Environment & secrets
+# =========================
+*.env                 # ignore any .env file anywhere
+backend/.env          # explicitly ignore backend/.env
+
+# =========================
+# Virtual environment
+# =========================
+backend/venv/         # ignore local virtual environment
+
+# =========================
+# Python packaging & builds
+# =========================
+*.egg-info/
+*.egg
+dist/
+build/
+*.wheel
+
+# =========================
+# IDE / editor files
+# =========================
+.vscode/              # VS Code workspace settings
+*.code-workspace
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# =========================
+# OS generated files
+# =========================
+.DS_Store             # macOS
+Thumbs.db             # Windows
+
+# =========================
+# Logs and temporary files
+# =========================
+*.log
+*.tmp
