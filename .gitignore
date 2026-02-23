@@ -1,0 +1,3 @@
+# gitignore all .env files irrespective of their location in the project
+*.env
+backend/venv/
