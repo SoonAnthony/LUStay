@@ -88,9 +88,9 @@ uvicorn app:app --reload
 
 ### Frontend
 
-cd frontend
-npm install
-npm start
+- cd frontend
+- npm install
+- npm start
 
 🎯 Impact
 
