@@ -49,9 +49,9 @@ class User(SQLModel, table=True):
 
     role: UserRole = Field(
         sa_column=Column(
-            PGEnum(UserRole, name="userrole"),
-            default=UserRole.STUDENT,
-            nullable=False
+        PGEnum(UserRole, name="userrole"),
+        server_default="STUDENT",
+        nullable=False
         ),
     )
 
@@ -114,8 +114,8 @@ class LandlordRequest(SQLModel, table=True):
 
     # User who made the request
     user_id: uuid.UUID = Field(
-        sa_column=Column(UUID(as_uuid=True), nullable=False),
-        foreign_key="users.id"
+        foreign_key="users.id",  
+        nullable=False
     )
     user: Optional[User] = Relationship(
         back_populates="landlord_requests",
@@ -135,8 +135,9 @@ class LandlordRequest(SQLModel, table=True):
 
     # Admin who approved/rejected
     admin_id: Optional[uuid.UUID] = Field(
-        sa_column=Column(UUID(as_uuid=True), nullable=True),
-        foreign_key="users.id"
+        foreign_key="users.id",
+        default=None,
+        nullable=True
     )
     admin: Optional[User] = Relationship(
         sa_relationship_kwargs={
