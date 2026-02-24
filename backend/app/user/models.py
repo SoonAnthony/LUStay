@@ -1,11 +1,18 @@
 from typing import Optional, List
 from sqlmodel import SQLModel, Field, Relationship, text, Index
-from sqlalchemy import Column, func, DateTime
+from sqlalchemy import Column, func, DateTime, ForeignKey
+
+# Back-reference to landlord requests
+landlord_requests: List["LandlordRequest"] = Relationship(
+    back_populates="user",
+    sa_relationship_kwargs={"foreign_keys": "[LandlordRequest.user_id]"}  # <-- explicitly
+)
 from sqlalchemy.dialects.postgresql import ENUM as PGEnum, UUID
 import enum
 import uuid
 from datetime import datetime
 from pydantic import EmailStr
+
 
 
 # User Role Enum
@@ -80,7 +87,8 @@ class User(SQLModel, table=True):
 
     # Back-reference to landlord requests
     landlord_requests: List["LandlordRequest"] = Relationship(
-        back_populates="user"
+    back_populates="user",
+    sa_relationship_kwargs={"foreign_keys": "[LandlordRequest.user_id]"}  
     )
 
     def __repr__(self):
@@ -118,10 +126,8 @@ class LandlordRequest(SQLModel, table=True):
         nullable=False
     )
     user: Optional[User] = Relationship(
-        back_populates="landlord_requests",
-        sa_relationship_kwargs={
-            "foreign_keys": "[LandlordRequest.user_id]"
-        }
+    back_populates="landlord_requests",
+    sa_relationship_kwargs={"foreign_keys": "[LandlordRequest.user_id]"}
     )
 
     status: RequestStatus = Field(
