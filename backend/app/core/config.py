@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     
 
     class Config:
-        env_file = Path(__file__).parent.parent / ".env"
+        env_file = Path(__file__).parent.parent.parent / ".env"
 
 
 settings = Settings()
