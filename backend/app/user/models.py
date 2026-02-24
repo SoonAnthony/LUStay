@@ -53,7 +53,6 @@ class User(SQLModel, table=True):
             default=UserRole.STUDENT,
             nullable=False
         ),
-        nullable=False
     )
 
     is_verified: bool = Field(default=False, nullable=False)
@@ -132,7 +131,6 @@ class LandlordRequest(SQLModel, table=True):
             nullable=False,
             index=True
         ),
-        nullable=False
     )
 
     # Admin who approved/rejected
@@ -156,7 +154,7 @@ class LandlordRequest(SQLModel, table=True):
 
     reviewed_at: Optional[datetime] = Field(
     sa_column=Column(DateTime(timezone=True), nullable=True)
-    )
+        )
 
     reason: Optional[str] = Field(default=None, max_length=255)
 
