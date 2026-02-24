@@ -7,6 +7,9 @@ import uuid
 from datetime import datetime
 from pydantic import EmailStr
 
+
+# user model
+
 class UserRole(str, enum.Enum):
     STUDENT = "STUDENT"
     LANDLORD = "LANDLORD"
