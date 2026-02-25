@@ -7,17 +7,15 @@ import uuid
 from datetime import datetime
 from pydantic import EmailStr
 
-# ----------------------------
+
 # User Role Enum
-# ----------------------------
 class UserRole(str, enum.Enum):
     STUDENT = "STUDENT"
     LANDLORD = "LANDLORD"
     ADMIN = "ADMIN"
 
-# ----------------------------
+
 # User Model
-# ----------------------------
 class User(SQLModel, table=True):
     __tablename__ = "users"
 
@@ -78,10 +76,9 @@ class User(SQLModel, table=True):
 
     last_login: Optional[datetime] = Field(default=None)
 
-    # ----------------------------
+    
     # Relationships
-    # ----------------------------
-
+    
     # Requests made by this user
     landlord_requests: List["LandlordRequest"] = Relationship(
         back_populates="user",
@@ -97,7 +94,7 @@ class User(SQLModel, table=True):
     def __repr__(self):
         return f"<User(email={self.email}, role={self.role})>"
 
-# ----------------------------
+
 # Landlord Request Status Enum
 # ----------------------------
 class RequestStatus(str, enum.Enum):
