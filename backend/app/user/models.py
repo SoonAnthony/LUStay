@@ -5,7 +5,7 @@ from sqlalchemy import Column, func, DateTime, ForeignKey
 # Back-reference to landlord requests
 landlord_requests: List["LandlordRequest"] = Relationship(
     back_populates="user",
-    sa_relationship_kwargs={"foreign_keys": "[LandlordRequest.user_id]"}  # <-- explicitly
+    sa_relationship_kwargs={"foreign_keys": "[LandlordRequest.user_id]"}  
 )
 from sqlalchemy.dialects.postgresql import ENUM as PGEnum, UUID
 import enum
