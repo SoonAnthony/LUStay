@@ -1,29 +1,23 @@
 from typing import Optional, List
 from sqlmodel import SQLModel, Field, Relationship, text, Index
-from sqlalchemy import Column, func, DateTime, ForeignKey
-
-# Back-reference to landlord requests
-landlord_requests: List["LandlordRequest"] = Relationship(
-    back_populates="user",
-    sa_relationship_kwargs={"foreign_keys": "[LandlordRequest.user_id]"}  
-)
+from sqlalchemy import Column, func, DateTime
 from sqlalchemy.dialects.postgresql import ENUM as PGEnum, UUID
 import enum
 import uuid
 from datetime import datetime
 from pydantic import EmailStr
 
-
-
+# ----------------------------
 # User Role Enum
+# ----------------------------
 class UserRole(str, enum.Enum):
     STUDENT = "STUDENT"
     LANDLORD = "LANDLORD"
     ADMIN = "ADMIN"
 
-
-
+# ----------------------------
 # User Model
+# ----------------------------
 class User(SQLModel, table=True):
     __tablename__ = "users"
 
@@ -56,9 +50,9 @@ class User(SQLModel, table=True):
 
     role: UserRole = Field(
         sa_column=Column(
-        PGEnum(UserRole, name="userrole"),
-        server_default="STUDENT",
-        nullable=False
+            PGEnum(UserRole, name="userrole"),
+            server_default="STUDENT",
+            nullable=False
         ),
     )
 
@@ -73,7 +67,6 @@ class User(SQLModel, table=True):
         )
     )
 
-
     updated_at: datetime = Field(
         sa_column=Column(
             DateTime(timezone=True),
@@ -85,25 +78,36 @@ class User(SQLModel, table=True):
 
     last_login: Optional[datetime] = Field(default=None)
 
-    # Back-reference to landlord requests
+    # ----------------------------
+    # Relationships
+    # ----------------------------
+
+    # Requests made by this user
     landlord_requests: List["LandlordRequest"] = Relationship(
-    back_populates="user",
-    sa_relationship_kwargs={"foreign_keys": "[LandlordRequest.user_id]"}  
+        back_populates="user",
+        sa_relationship_kwargs={"foreign_keys": "[LandlordRequest.user_id]"}  
+    )
+
+    # Requests reviewed by this user (if admin)
+    reviewed_requests: List["LandlordRequest"] = Relationship(
+        back_populates="admin",
+        sa_relationship_kwargs={"foreign_keys": "[LandlordRequest.admin_id]"}
     )
 
     def __repr__(self):
         return f"<User(email={self.email}, role={self.role})>"
 
-
-
+# ----------------------------
 # Landlord Request Status Enum
+# ----------------------------
 class RequestStatus(str, enum.Enum):
     PENDING = "PENDING"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
 
-
+# ----------------------------
 # LandlordRequest Model
+# ----------------------------
 class LandlordRequest(SQLModel, table=True):
     __tablename__ = "landlord_requests"
     __table_args__ = (
@@ -126,17 +130,8 @@ class LandlordRequest(SQLModel, table=True):
         nullable=False
     )
     user: Optional[User] = Relationship(
-    back_populates="landlord_requests",
-    sa_relationship_kwargs={"foreign_keys": "[LandlordRequest.user_id]"}
-    )
-
-    status: RequestStatus = Field(
-        sa_column=Column(
-            PGEnum(RequestStatus, name="requeststatus"),
-            default=RequestStatus.PENDING,
-            nullable=False,
-            index=True
-        ),
+        back_populates="landlord_requests",
+        sa_relationship_kwargs={"foreign_keys": "[LandlordRequest.user_id]"}
     )
 
     # Admin who approved/rejected
@@ -146,9 +141,17 @@ class LandlordRequest(SQLModel, table=True):
         nullable=True
     )
     admin: Optional[User] = Relationship(
-        sa_relationship_kwargs={
-            "foreign_keys": "[LandlordRequest.admin_id]"
-        }
+        back_populates="reviewed_requests",
+        sa_relationship_kwargs={"foreign_keys": "[LandlordRequest.admin_id]"}
+    )
+
+    status: RequestStatus = Field(
+        sa_column=Column(
+            PGEnum(RequestStatus, name="requeststatus"),
+            server_default="PENDING",
+            nullable=False,
+            index=True
+        ),
     )
 
     requested_at: datetime = Field(
@@ -160,11 +163,10 @@ class LandlordRequest(SQLModel, table=True):
     )
 
     reviewed_at: Optional[datetime] = Field(
-    sa_column=Column(DateTime(timezone=True), nullable=True)
-        )
+        sa_column=Column(DateTime(timezone=True), nullable=True)
+    )
 
     reason: Optional[str] = Field(default=None, max_length=255)
 
     def __repr__(self):
         return f"<LandlordRequest(user_id={self.user_id}, status={self.status})>"
-    
