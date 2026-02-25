@@ -102,9 +102,9 @@ class RequestStatus(str, enum.Enum):
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
 
-# ----------------------------
+
 # LandlordRequest Model
-# ----------------------------
+
 class LandlordRequest(SQLModel, table=True):
     __tablename__ = "landlord_requests"
     __table_args__ = (
