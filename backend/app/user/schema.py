@@ -1,8 +1,9 @@
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from datetime import datetime
 import uuid
 from .models import UserRole
 from typing import Optional
+import re
 
 class UserSchema(BaseModel):
     id: uuid.UUID
@@ -18,15 +19,11 @@ class UserSelfSchema(UserSchema):
     role: UserRole
     is_verified: bool
     created_at: datetime
-    last_login: Optional[datetime]
+    last_login: Optional[datetime] = None
 
-    model_config = ConfigDict(from_attributes=True)
 
 # information that only admin can see about a user on top of the self schema
 class AdminUserSchema(UserSelfSchema):
     is_suspended: bool
-
-    model_config = ConfigDict(from_attributes=True)
-
 
 
