@@ -12,4 +12,21 @@ class UserSchema(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+class UserSelfSchema(UserSchema):
+    email: EmailStr
+    phone_number: str
+    role: UserRole
+    is_verified: bool
+    created_at: datetime
+    last_login: Optional[datetime]
+
+    model_config = ConfigDict(from_attributes=True)
+
+# information that only admin can see about a user on top of the self schema
+class AdminUserSchema(UserSelfSchema):
+    is_suspended: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 
