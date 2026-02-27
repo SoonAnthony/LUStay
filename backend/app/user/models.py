@@ -75,9 +75,9 @@ class User(SQLModel, table=True):
     )
 
     last_login: Optional[datetime] = Field(default=None)
-    
+
     # Temporary fields for email/phone verification
-    pending_email: Optional[str] = Field(default=None, max_length=150)
+    pending_email: Optional[EmailStr] = Field(default=None, max_length=150)
     pending_phone: Optional[str] = Field(default=None, max_length=13)
     email_otp: Optional[str] = Field(default=None, max_length=6)
     phone_otp: Optional[str] = Field(default=None, max_length=6)
