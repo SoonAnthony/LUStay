@@ -69,8 +69,12 @@ class UserCreateSchema(BaseModel):
         return value
 
 
-class userUpdateSchema(BaseModel):
+class UserUpdateSchema(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
     profile_image: Optional[str] = None
    
+
+class AdminUserUpdateSchema(UserUpdateSchema):
+    is_suspended: Optional[bool] = None
+    role: Optional[UserRole] = None
