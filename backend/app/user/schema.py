@@ -124,3 +124,8 @@ class ChangePasswordSchema(BaseModel):
             raise ValueError("Password must contain at least one special character")
 
         return value
+    
+
+class LoginSchema(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=128)
