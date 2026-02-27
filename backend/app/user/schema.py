@@ -5,6 +5,41 @@ from .models import UserRole
 from typing import Optional
 import re
 
+
+def validate_kenyan_phone(cls, value: str) -> str:
+    value = value.strip().replace(" ", "")
+
+    pattern = r"^(?:\+254|254|0)?(7\d{8}|1\d{8})$"
+
+    match = re.match(pattern, value)
+    if not match:
+        raise ValueError(
+            "Invalid Kenyan phone number. "
+            "Use format 07XXXXXXXX or +2547XXXXXXXX"
+        )
+
+    number_part = match.group(1)
+    return f"+254{number_part}"
+
+
+def validate_password_strength(cls, value: str) -> str:
+    if not re.search(r"[A-Z]", value):
+        raise ValueError("Password must contain at least one uppercase letter")
+
+    if not re.search(r"[a-z]", value):
+        raise ValueError("Password must contain at least one lowercase letter")
+
+    if not re.search(r"\d", value):
+        raise ValueError("Password must contain at least one digit")
+
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", value):
+        raise ValueError("Password must contain at least one special character")
+
+    return value
+
+
+
+
 class UserSchema(BaseModel):
     id: uuid.UUID
     first_name: str
@@ -22,6 +57,8 @@ class UserSelfSchema(UserSchema):
     last_login: Optional[datetime] = None
 
 
+
+
 # information that only admin can see about a user on top of the self schema
 class AdminUserSchema(UserSelfSchema):
     is_suspended: bool
@@ -36,37 +73,16 @@ class UserCreateSchema(BaseModel):
 
     @field_validator("phone_number")
     @classmethod
-    def validate_kenyan_phone(cls, value: str) -> str:
-        value = value.strip().replace(" ", "")
-
-        pattern = r"^(?:\+254|254|0)?(7\d{8}|1\d{8})$"
-
-        match = re.match(pattern, value)
-        if not match:
-            raise ValueError(
-                "Invalid Kenyan phone number. "
-                "Use format 07XXXXXXXX or +2547XXXXXXXX"
-            )
-
-        number_part = match.group(1)
-        return f"+254{number_part}"
+    def validate_phone(cls, value: str) -> str:
+        return validate_kenyan_phone(value)
     
     @field_validator("password")
     @classmethod
     def validate_password_strength(cls, value: str) -> str:
-        if not re.search(r"[A-Z]", value):
-            raise ValueError("Password must contain at least one uppercase letter")
+        return validate_password_strength(value)
+    
 
-        if not re.search(r"[a-z]", value):
-            raise ValueError("Password must contain at least one lowercase letter")
-
-        if not re.search(r"\d", value):
-            raise ValueError("Password must contain at least one digit")
-
-        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", value):
-            raise ValueError("Password must contain at least one special character")
-
-        return value
+    
 
 
 class UserUpdateSchema(BaseModel):
@@ -89,20 +105,8 @@ class RequestPhoneChangeSchema(BaseModel):
 
     @field_validator("new_phone")
     @classmethod
-    def validate_kenyan_phone(cls, value: str) -> str:
-        value = value.strip().replace(" ", "")
-        pattern = r"^(?:\+254|254|0)?(7\d{8}|1\d{8})$"
-        match = re.match(pattern, value)
-
-        if not match:
-            raise ValueError(
-                "Invalid Kenyan phone number. "
-                "Use format 07XXXXXXXX or +2547XXXXXXXX"
-            )
-
-        number_part = match.group(1)
-        return f"+254{number_part}"
-    
+    def validate_phone(cls, value: str) -> str:
+        return validate_kenyan_phone(value)
 
 class ChangePasswordSchema(BaseModel):
     current_password: str = Field(..., min_length=8, max_length=128)
@@ -111,19 +115,7 @@ class ChangePasswordSchema(BaseModel):
     @field_validator("new_password")
     @classmethod
     def validate_password_strength(cls, value: str) -> str:
-        if not re.search(r"[A-Z]", value):
-            raise ValueError("Password must contain at least one uppercase letter")
-
-        if not re.search(r"[a-z]", value):
-            raise ValueError("Password must contain at least one lowercase letter")
-
-        if not re.search(r"\d", value):
-            raise ValueError("Password must contain at least one digit")
-
-        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", value):
-            raise ValueError("Password must contain at least one special character")
-
-        return value
+        return validate_password_strength(value)
     
 
 class LoginSchema(BaseModel):
