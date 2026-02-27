@@ -82,9 +82,6 @@ class UserCreateSchema(BaseModel):
         return validate_password_strength(value)
     
 
-    
-
-
 class UserUpdateSchema(BaseModel):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
