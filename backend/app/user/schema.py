@@ -78,3 +78,27 @@ class UserUpdateSchema(BaseModel):
 class AdminUserUpdateSchema(UserUpdateSchema):
     is_suspended: Optional[bool] = None
     role: Optional[UserRole] = None
+
+class RequestEmailChangeSchema(BaseModel):
+    new_email: EmailStr
+    password: str = Field(..., min_length=8, max_length=128)
+
+class RequestPhoneChangeSchema(BaseModel):
+    new_phone: str
+    password: str = Field(..., min_length=8, max_length=128)
+
+    @field_validator("new_phone")
+    @classmethod
+    def validate_kenyan_phone(cls, value: str) -> str:
+        value = value.strip().replace(" ", "")
+        pattern = r"^(?:\+254|254|0)?(7\d{8}|1\d{8})$"
+        match = re.match(pattern, value)
+
+        if not match:
+            raise ValueError(
+                "Invalid Kenyan phone number. "
+                "Use format 07XXXXXXXX or +2547XXXXXXXX"
+            )
+
+        number_part = match.group(1)
+        return f"+254{number_part}"
