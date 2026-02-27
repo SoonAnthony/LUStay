@@ -75,6 +75,13 @@ class User(SQLModel, table=True):
     )
 
     last_login: Optional[datetime] = Field(default=None)
+    
+    # Temporary fields for email/phone verification
+    pending_email: Optional[str] = Field(default=None, max_length=150)
+    pending_phone: Optional[str] = Field(default=None, max_length=13)
+    email_otp: Optional[str] = Field(default=None, max_length=6)
+    phone_otp: Optional[str] = Field(default=None, max_length=6)
+    otp_expiry: Optional[datetime] = Field(default=None)
 
     
     # Relationships
@@ -164,6 +171,7 @@ class LandlordRequest(SQLModel, table=True):
     )
 
     reason: Optional[str] = Field(default=None, max_length=255)
+
 
     def __repr__(self):
         return f"<LandlordRequest(user_id={self.user_id}, status={self.status})>"
