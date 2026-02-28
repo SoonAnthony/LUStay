@@ -3,7 +3,7 @@ from fastapi import FastAPI, APIRouter
 from sqlmodel import SQLModel
 from .db.engine import engine
 from sqlalchemy import text
-from app.user.router import user_router
+from app.user.service import user_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
