@@ -118,3 +118,13 @@ class ChangePasswordSchema(BaseModel):
 class LoginSchema(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
+
+
+from sqlmodel import SQLModel
+from typing import List
+
+class PaginatedUsers(SQLModel):
+    total: int
+    limit: int
+    offset: int
+    data: List[UserSchema]
