@@ -1,6 +1,5 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, APIRouter
-from sqlmodel import SQLModel
 from .db.engine import engine
 from sqlalchemy import text
 from app.user.router import user_router
@@ -15,7 +14,7 @@ async def lifespan(app: FastAPI):
     yield
     # shutdown logic
     print("Disconnecting from the database...")
-    await engine.dispose()
+    
     print("Disconnected from the database.")
 
 app = FastAPI(lifespan=lifespan)
