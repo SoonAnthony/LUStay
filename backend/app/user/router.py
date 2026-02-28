@@ -23,7 +23,7 @@ user_service = UserService()
 # SELF ROUTES (Regular User)
 # ============================================================
 
-@router.get("/me/{user_id}", response_model=UserSchema)
+@user_router.get("/me/{user_id}", response_model=UserSchema)
 async def get_self(
     user_id: UUID,
     session: AsyncSession = Depends(get_session),
@@ -36,7 +36,7 @@ async def get_self(
     return user
 
 
-@router.patch("/me/{user_id}", response_model=UserSchema)
+@user_router.patch("/me/{user_id}", response_model=UserSchema)
 async def update_self(
     user_id: UUID,
     payload: UserUpdateSchema,
@@ -54,7 +54,7 @@ async def update_self(
 # EMAIL / PHONE / PASSWORD CHANGE REQUESTS
 # ============================================================
 
-@router.post("/me/{user_id}/request-email-change")
+@user_router.post("/me/{user_id}/request-email-change")
 async def request_email_change(
     user_id: UUID,
     payload: RequestEmailChangeSchema,
@@ -66,7 +66,7 @@ async def request_email_change(
     return {"message": "Email change request submitted"}
 
 
-@router.post("/me/{user_id}/request-phone-change")
+@user_router.post("/me/{user_id}/request-phone-change")
 async def request_phone_change(
     user_id: UUID,
     payload: RequestPhoneChangeSchema,
@@ -78,7 +78,7 @@ async def request_phone_change(
     return {"message": "Phone change request submitted"}
 
 
-@router.post("/me/{user_id}/request-password-change")
+@user_router.post("/me/{user_id}/request-password-change")
 async def request_password_change(
     user_id: UUID,
     payload: ChangePasswordSchema,
@@ -94,7 +94,7 @@ async def request_password_change(
 # ADMIN ROUTES
 # ============================================================
 
-@router.get("/", response_model=List[AdminUserSchema])
+@user_router.get("/", response_model=List[AdminUserSchema])
 async def get_all_users(
     session: AsyncSession = Depends(get_session),
 ):
@@ -102,7 +102,7 @@ async def get_all_users(
     return users
 
 
-@router.get("/{user_id}", response_model=AdminUserSchema)
+@user_router.get("/{user_id}", response_model=AdminUserSchema)
 async def get_user_admin(
     user_id: UUID,
     session: AsyncSession = Depends(get_session),
@@ -115,7 +115,7 @@ async def get_user_admin(
     return user
 
 
-@router.post("/", response_model=AdminUserSchema, status_code=status.HTTP_201_CREATED)
+@user_router.post("/", response_model=AdminUserSchema, status_code=status.HTTP_201_CREATED)
 async def create_user(
     payload: UserCreateSchema,
     session: AsyncSession = Depends(get_session),
@@ -128,7 +128,7 @@ async def create_user(
     return user
 
 
-@router.patch("/{user_id}", response_model=AdminUserSchema)
+@user_router.patch("/{user_id}", response_model=AdminUserSchema)
 async def admin_update_user(
     user_id: UUID,
     payload: AdminUserUpdateSchema,
@@ -142,7 +142,7 @@ async def admin_update_user(
     return user
 
 
-@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@user_router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_user(
     user_id: UUID,
     session: AsyncSession = Depends(get_session),
