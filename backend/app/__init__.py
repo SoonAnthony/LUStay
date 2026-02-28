@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter
 from sqlmodel import SQLModel
 from .db.engine import engine
 from sqlalchemy import text
@@ -19,6 +19,19 @@ async def lifespan(app: FastAPI):
     print("Disconnected from the database.")
 
 app = FastAPI(lifespan=lifespan)
-app.include_router(user_router, prefix="/users", tags=["Users"])
+
+
+# ✅ Create API v1 router
+api_v1_router = APIRouter(prefix="/api/v1")
+
+# ✅ Register domain routers under v1
+api_v1_router.include_router(
+    user_router,
+    prefix="/users",
+    tags=["Users"]
+)
+
+# ✅ Register version router in app
+app.include_router(api_v1_router)
 
 
