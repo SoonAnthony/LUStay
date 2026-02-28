@@ -1,7 +1,8 @@
 from typing import List, Optional
 from datetime import datetime, timedelta
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select, desc
+from sqlmodel import select
+from sqlalchemy import desc, func
 from sqlalchemy.exc import IntegrityError
 
 from .models import User, UserRole
@@ -21,19 +22,26 @@ from .exceptions import UserAlreadyExistsError, UserNotFoundError, DatabaseError
 
 class UserService:
     # -------------------- User / Admin Fetch -------------------- #
-    
-    async def get_user(self, session: AsyncSession, user_id: str) -> UserSelfSchema:
+
+    async def get_user(
+        self,
+        session: AsyncSession,
+        user_id: str
+    ) -> UserSelfSchema:
         """Fetch a single user for user-level access (self view)."""
         try:
             statement = select(User).where(User.id == user_id)
             result = await session.exec(statement)
             user = result.one_or_none()
+
             if not user:
                 raise UserNotFoundError(f"User {user_id} not found")
+
             return UserSelfSchema.model_validate(user)
+
         except Exception as e:
             raise DatabaseError(f"Failed to fetch user: {str(e)}")
-    
+
     async def get_all_users(
         self,
         session: AsyncSession,
@@ -43,23 +51,35 @@ class UserService:
     ) -> dict:
         """Fetch all users for admin-level access with optional role filter."""
         try:
-            statement = select(User).order_by(desc(User.created_at))
+            # Base query
+            base_query = select(User)
             if role:
-                statement = statement.where(User.role == role)
-            statement = statement.offset(offset).limit(limit)
-            result = await session.exec(statement)
+                base_query = base_query.where(User.role == role)
+
+            # Data query with pagination
+            data_query = (
+                base_query
+                .order_by(desc(User.created_at))
+                .offset(offset)
+                .limit(limit)
+            )
+            result = await session.exec(data_query)
             users = result.all()
 
-            total = await session.exec(select(User).count())
+            # Count query
+            count_query = select(func.count()).select_from(base_query.subquery())
+            total_result = await session.exec(count_query)
+            total = total_result.one()
+
             return {
                 "total": total,
                 "limit": limit,
                 "offset": offset,
-                "data": [AdminUserSchema.model_validate(user) for user in users],
+                "users": [AdminUserSchema.model_validate(user) for user in users],
             }
+
         except Exception as e:
             raise DatabaseError(f"Failed to fetch users: {str(e)}")
-
     # -------------------- Create / Update / Delete -------------------- #
     
     async def create_user(self, payload: UserCreateSchema) -> User:
