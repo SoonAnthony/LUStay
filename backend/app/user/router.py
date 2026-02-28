@@ -16,7 +16,7 @@ from app.user.schema import (
     ChangePasswordSchema,
 )
 
-router = APIRouter(prefix="/users", tags=["Users"])
+user_router = APIRouter(prefix="/users", tags=["Users"])
 user_service = UserService()
 
 # ============================================================
