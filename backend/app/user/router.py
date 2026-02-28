@@ -14,9 +14,10 @@ from app.user.schema import (
     RequestEmailChangeSchema,
     RequestPhoneChangeSchema,
     ChangePasswordSchema,
+    PaginatedUsers,
 )
 
-user_router = APIRouter(prefix="/users", tags=["Users"])
+user_router = APIRouter(tags=["Users"])
 user_service = UserService()
 
 # ============================================================
@@ -94,7 +95,7 @@ async def request_password_change(
 # ADMIN ROUTES
 # ============================================================
 
-@user_router.get("/", response_model=List[AdminUserSchema])
+@user_router.get("/", response_model=PaginatedUsers)
 async def get_all_users(
     session: AsyncSession = Depends(get_session),
 ):
