@@ -12,6 +12,8 @@ engine: AsyncEngine = create_async_engine(
     echo=False,
     future = True,
     connect_args={"ssl": ssl_context},
+    pool_pre_ping=True,          # ✅ VERY IMPORTANT
+    pool_recycle=300,  
 )
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
