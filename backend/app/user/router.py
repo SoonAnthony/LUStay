@@ -4,7 +4,7 @@ from typing import List
 from uuid import UUID
 
 from app.db.engine import get_session
-from app.user import UserService
+from app.user.service import UserService
 from app.user.schema import (
     UserSchema,
     AdminUserSchema,
