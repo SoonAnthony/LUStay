@@ -2,8 +2,9 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from datetime import datetime
 import uuid
 from .models import UserRole
-from typing import Optional
+from typing import Optional, List
 import re
+from sqlmodel import SQLModel
 
 
 def validate_kenyan_phone(cls, value: str) -> str:
@@ -118,10 +119,6 @@ class ChangePasswordSchema(BaseModel):
 class LoginSchema(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
-
-
-from sqlmodel import SQLModel
-from typing import List
 
 class PaginatedUsers(SQLModel):
     total: int
