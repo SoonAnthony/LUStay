@@ -3,11 +3,15 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 from app.core.config import settings
 from typing import AsyncGenerator
+import ssl
+
+ssl_context = ssl.create_default_context()
 
 engine: AsyncEngine = create_async_engine(
     settings.DATABASE_URL,
     echo=False,
-    future = True
+    future = True,
+    connect_args={"ssl": ssl_context},
 )
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
