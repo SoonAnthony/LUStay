@@ -3,6 +3,7 @@ from fastapi import FastAPI
 from sqlmodel import SQLModel
 from .db.engine import engine
 from sqlalchemy import text
+from app.user.router import user_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -18,5 +19,6 @@ async def lifespan(app: FastAPI):
     print("Disconnected from the database.")
 
 app = FastAPI(lifespan=lifespan)
+app.include_router(user_router)
 
 
