@@ -124,4 +124,4 @@ class PaginatedUsers(SQLModel):
     total: int
     limit: int
     offset: int
-    users: List[UserSchema]
+    users: List[AdminUserSchema]
