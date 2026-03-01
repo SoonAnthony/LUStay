@@ -120,7 +120,7 @@ class LoginSchema(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
 
-class PaginatedUsers(SQLModel):
+class PaginatedUsers(BaseModel):
     total: int
     limit: int
     offset: int
