@@ -37,9 +37,8 @@ async def get_self(
 
     return UserSelfSchema.model_validate(user)
 
-auth_router = APIRouter(prefix="/auth", tags=["Auth"])
 
-@auth_router.post("/register", response_model=UserSchema, status_code=201)
+@user_router.post("/register", response_model=UserSchema, status_code=201)
 async def register(
     payload: UserCreateSchema,
     session: AsyncSession = Depends(get_session),
