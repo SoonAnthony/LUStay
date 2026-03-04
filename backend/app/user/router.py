@@ -15,6 +15,7 @@ from app.user.schema import (
     RequestPhoneChangeSchema,
     ChangePasswordSchema,
     PaginatedUsers,
+    UserSelfSchema,
 )
 
 user_router = APIRouter(tags=["Users"])
@@ -34,7 +35,7 @@ async def get_self(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    return user
+    return UserSelfSchema.model_validate(user)
 
 
 @user_router.patch("/me/{user_id}", response_model=UserSchema)
@@ -108,12 +109,12 @@ async def get_user_admin(
     user_id: UUID,
     session: AsyncSession = Depends(get_session),
 ):
-    user = await user_service.get_user_by_id(session, user_id)
+    user = await user_service.get_user(session, user_id)
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    return user
+    return AdminUserSchema.model_validate(user)
 
 
 @user_router.post("/", response_model=AdminUserSchema, status_code=status.HTTP_201_CREATED)
