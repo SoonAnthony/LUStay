@@ -21,7 +21,7 @@ from .exceptions import UserAlreadyExistsError, UserNotFoundError, DatabaseError
 
 
 class UserService:
-    # -------------------- User / Admin Fetch -------------------- #
+    # -------------------- User / Admin GET -------------------- #
 
     async def get_user(
         self,
@@ -82,7 +82,7 @@ class UserService:
             raise DatabaseError(f"Failed to fetch users: {str(e)}")
     # -------------------- Create / Update / Delete -------------------- #
     
-    async def create_user(self, payload: UserCreateSchema) -> User:
+    async def create_user(self, session: AsyncSession, payload: UserCreateSchema,  hashed_password: str) -> User:
         """Prepare a new user object (commit in routes)."""
         try:
             user = User(
@@ -90,9 +90,10 @@ class UserService:
                 last_name=payload.last_name,
                 email=payload.email,
                 phone_number=payload.phone_number,
-                password_hash=payload.password,  # hash in routes
+                password_hash=hashed_password,  # hash in routes
                 role=UserRole.STUDENT,
             )
+            session.add(user)
             return user
         except IntegrityError as e:
             raise UserAlreadyExistsError(f"Email or phone already exists: {str(e)}")
