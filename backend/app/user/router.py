@@ -17,6 +17,7 @@ from app.user.schema import (
     PaginatedUsers,
     UserSelfSchema,
 )
+from app.core.security import hash_password
 
 user_router = APIRouter(tags=["Users"])
 user_service = UserService()
@@ -38,12 +39,13 @@ async def get_self(
     return UserSelfSchema.model_validate(user)
 
 
-@user_router.post("/register", response_model=UserSchema, status_code=201)
+@user_router.post("/register", response_model=UserSelfSchema, status_code=201)
 async def register(
     payload: UserCreateSchema,
     session: AsyncSession = Depends(get_session),
 ):
-    user = await user_service.create_user(session, payload)
+    
+    user = await user_service.create_user(session, payload,  hashed_password=hash_password(payload.password))
 
     await session.commit()
     await session.refresh(user)
@@ -135,7 +137,8 @@ async def create_user(
     payload: UserCreateSchema,
     session: AsyncSession = Depends(get_session),
 ):
-    user = await user_service.create_user(session, payload)
+    user = await user_service.create_user(session, payload, hashed_password=hash_password(payload.password)
+    )
 
     await session.commit()
     await session.refresh(user)
