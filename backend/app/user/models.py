@@ -82,6 +82,10 @@ class User(SQLModel, table=True):
     phone_otp: Optional[str] = Field(default=None, max_length=6)
     otp_expiry: Optional[datetime] = Field(default=None)
 
+    # Temporary fields for password verification
+    pending_password: Optional[str] = Field(default=None, max_length=128)
+    password_otp: Optional[str] = Field(default=None, max_length=6)
+
     
     # Relationships
     
