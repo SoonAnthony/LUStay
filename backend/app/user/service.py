@@ -27,7 +27,7 @@ class UserService:
         self,
         session: AsyncSession,
         user_id: str
-    ) -> UserSelfSchema:
+    ) -> User:
         """Fetch a single user for user-level access (self view)."""
         try:
             statement = select(User).where(User.id == user_id)
@@ -37,7 +37,7 @@ class UserService:
             if not user:
                 raise UserNotFoundError(f"User {user_id} not found")
 
-            return UserSelfSchema.model_validate(user)
+            return user
 
         except Exception as e:
             raise DatabaseError(f"Failed to fetch user: {str(e)}")
