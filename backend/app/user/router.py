@@ -18,6 +18,7 @@ from app.user.schema import (
     UserSelfSchema,
 )
 from app.core.security import hash_password
+from app.user.models import User
 
 user_router = APIRouter(tags=["Users"])
 user_service = UserService()
@@ -104,7 +105,7 @@ async def request_password_change(
     await user_service.change_password(session, user_id, payload)
     await session.commit()
 
-    return {"message": "Password change request submitted"}
+    return {"message": "Password change request submitted. Check your OTP to confirm."}
 
 
 # ============================================================
