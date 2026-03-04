@@ -29,7 +29,7 @@ async def get_self(
     user_id: UUID,
     session: AsyncSession = Depends(get_session),
 ):
-    user = await user_service.get_user_by_id(session, user_id)
+    user = await user_service.get_user(session, user_id)
 
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
