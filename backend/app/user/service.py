@@ -1,5 +1,7 @@
 from typing import List, Optional
 from datetime import datetime, timedelta
+from asyncpg import InvalidPasswordError
+from fastapi import HTTPException
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 from sqlalchemy import desc, func
@@ -16,8 +18,10 @@ from .schema import (
     RequestEmailChangeSchema,
     RequestPhoneChangeSchema,
     ChangePasswordSchema,
+    validate_password_strength,
 )
 from .exceptions import UserAlreadyExistsError, UserNotFoundError, DatabaseError
+from app.core.security import verify_password, hash_password
 
 
 class UserService:
@@ -127,33 +131,78 @@ class UserService:
     
     # -------------------- Email / Phone / Password -------------------- #
     
-    async def request_email_change(self, user: User, payload: RequestEmailChangeSchema) -> User:
+    async def request_email_change(self, session: AsyncSession, user_id: str, payload: RequestEmailChangeSchema) -> User:
         """Set pending email with OTP (commit in routes)."""
         try:
+            user = await session.get(User, user_id)
+            if not user:
+                raise UserNotFoundError(f"User {user_id} not found")
+
+            # Verify current password
+            if not verify_password(payload.password, user.password_hash):
+                raise HTTPException(
+                    status_code=401, 
+                    detail="Current password is incorrect"
+                )
+
+
             user.pending_email = payload.new_email
             user.email_otp = self._generate_otp()
             user.otp_expiry = datetime.utcnow() + timedelta(minutes=15)
+            session.add(user)
             return user
         except Exception as e:
             raise DatabaseError(f"Failed to request email change: {str(e)}")
 
-    async def request_phone_change(self, user: User, payload: RequestPhoneChangeSchema) -> User:
+    async def request_phone_change(self, session: AsyncSession, user_id: str, payload: RequestPhoneChangeSchema) -> User:
         """Set pending phone with OTP (commit in routes)."""
         try:
+            user = await session.get(User, user_id)
+            if not user:
+                raise UserNotFoundError(f"User {user_id} not found")
+
+            # Verify current password
+            if not verify_password(payload.password, user.password_hash):
+                raise HTTPException(
+                    status_code=401, 
+                    detail="Current password is incorrect"
+                )
+
             user.pending_phone = payload.new_phone
             user.phone_otp = self._generate_otp()
             user.otp_expiry = datetime.utcnow() + timedelta(minutes=15)
+            session.add(user)
             return user
         except Exception as e:
             raise DatabaseError(f"Failed to request phone change: {str(e)}")
 
-    async def change_password(self, user: User, payload: ChangePasswordSchema) -> User:
+    async def change_password(self, session: AsyncSession, user_id: str, payload: ChangePasswordSchema) -> User:
         """Update user password (hash in routes)."""
         try:
-            user.password_hash = payload.new_password
+            user = await session.get(User, user_id)
+            if not user:
+                raise UserNotFoundError(f"User {user_id} not found")
+
+            # Verify current password
+            if not verify_password(payload.current_password, user.password_hash):
+                raise HTTPException(
+                    status_code=401, 
+                    detail="Current password is incorrect"
+                )
+
+            # Validate new password rules
+            validate_password_strength(payload.new_password)
+
+            # Hash the new password before storing
+            user.pending_password = hash_password(payload.new_password)
+            user.password_otp = self._generate_otp()
+            user.otp_expiry = datetime.utcnow() + timedelta(minutes=15)
+
+            session.add(user)
             return user
+
         except Exception as e:
-            raise DatabaseError(f"Failed to change password: {str(e)}")
+            raise DatabaseError(f"Failed to request password change: {str(e)}")
     
     # -------------------- Helpers -------------------- #
     
