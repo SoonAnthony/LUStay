@@ -7,7 +7,7 @@ import re
 from sqlmodel import SQLModel
 
 
-def validate_kenyan_phone(cls, value: str) -> str:
+def validate_kenyan_phone(value: str) -> str:
     value = value.strip().replace(" ", "")
 
     pattern = r"^(?:\+254|254|0)?(7\d{8}|1\d{8})$"
@@ -23,7 +23,7 @@ def validate_kenyan_phone(cls, value: str) -> str:
     return f"+254{number_part}"
 
 
-def validate_password_strength(cls, value: str) -> str:
+def validate_password_strength(value: str) -> str:
     if not re.search(r"[A-Z]", value):
         raise ValueError("Password must contain at least one uppercase letter")
 
