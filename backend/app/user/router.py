@@ -48,7 +48,7 @@ async def register(
     await session.commit()
     await session.refresh(user)
 
-    return UserSchema.model_validate(user)
+    return UserSelfSchema.model_validate(user)
 
 
 @user_router.patch("/me/{user_id}", response_model=UserSchema)
