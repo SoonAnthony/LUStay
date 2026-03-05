@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 from typing import List
 from uuid import UUID
+from sqlmodel import select
 
 from app.db.engine import get_session
 from app.user.service import UserService
@@ -16,15 +17,16 @@ from app.user.schema import (
     ChangePasswordSchema,
     PaginatedUsers,
     UserSelfSchema,
+    LoginSchema,
+    TokenResponse,
 )
 from app.core.security import hash_password
 from .models import User
 from .dependencies import (
-    get_current_user,
     get_current_active_user,
     get_current_admin
 )
-from .utils import create_access_token, create_refresh_token, decode_access_token
+from datetime import datetime
 
 user_router = APIRouter(tags=["Users"])
 user_service = UserService()
@@ -114,6 +116,56 @@ async def request_password_change(
     return {"message": "Password change request submitted. Check your OTP to confirm."}
 
 
+#===============================
+# POST /auth/login
+# ===============================
+@user_router.post("/login", response_model=TokenResponse)
+async def login(
+    payload: LoginSchema,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Authenticate a user and return access & refresh JWT tokens.
+    """
+    tokens = await user_service.login(session, payload)
+
+    # Update last login
+    result = await session.execute(select(User).where(User.email == payload.email))
+    user = result.scalar_one_or_none()
+    if user:
+        user.last_login = datetime.utcnow()
+        session.add(user)
+        await session.commit()
+    
+    return tokens
+
+
+# ===============================
+# POST /auth/refresh
+# ===============================
+@user_router.post("/refresh", response_model=TokenResponse)
+async def refresh_token(
+    refresh_token: str
+):
+    """
+    Generate a new access token using a valid refresh token.
+    """
+    payload = user_service.decode_refresh_token(refresh_token)
+    if not payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token"
+        )
+
+    user_id = payload.get("sub")
+    access_token = user_service.create_access_token(data={"sub": user_id})
+    new_refresh_token = user_service.create_refresh_token(data={"sub": user_id})
+
+    return {
+        "access_token": access_token,
+        "refresh_token": new_refresh_token,
+        "token_type": "bearer"
+    }
 
 
 # ============================================================
@@ -146,7 +198,7 @@ async def get_user_admin(
 async def create_user(
     payload: UserCreateSchema,
     session: AsyncSession = Depends(get_session),
-    admin: User = Depends(get_current_admin)
+     _: User = Depends(get_current_admin)  # underscore signals "we're not using this variable"
 ):
     user = await user_service.create_user(
         session,
