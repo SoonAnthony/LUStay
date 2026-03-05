@@ -154,7 +154,9 @@ async def admin_update_user(
     payload: AdminUserUpdateSchema,
     session: AsyncSession = Depends(get_session),
 ):
-    user = await user_service.admin_update_user(session, user_id, payload)
+    user = await user_service.get_user(session, user_id)
+
+    user = await user_service.admin_update_user(user, payload)
 
     await session.commit()
     await session.refresh(user)
