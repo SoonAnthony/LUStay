@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     DB_PORT: int = 5432
     DB_NAME: str
     DB_SSL_MODE: str = "require"
+    SECRET_KEY: str
+    ALGORITHM: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
 
 
     @property
