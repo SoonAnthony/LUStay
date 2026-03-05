@@ -125,3 +125,8 @@ class PaginatedUsers(BaseModel):
     limit: int
     offset: int
     users: List[AdminUserSchema]
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
