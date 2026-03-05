@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, APIRouter
 from .db.engine import engine
 from sqlalchemy import text
-from app.user.router import user_router
+from app.user.router import user_router, admin_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -30,7 +30,10 @@ api_v1_router.include_router(
     tags=["Users"]
 )
 
+api_v1_router.include_router(
+    admin_router,
+    tags=["Admin"]
+)
+
 # ✅ Register version router in app
 app.include_router(api_v1_router)
-
-
