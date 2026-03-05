@@ -19,9 +19,13 @@ from .schema import (
     RequestPhoneChangeSchema,
     ChangePasswordSchema,
     validate_password_strength,
+    LoginSchema,
+    TokenResponse,
 )
 from .exceptions import UserAlreadyExistsError, UserNotFoundError, DatabaseError
 from app.core.security import verify_password, hash_password
+from .utils import create_access_token, create_refresh_token, decode_access_token
+from fastapi import HTTPException, status
 
 
 class UserService:
@@ -203,6 +207,62 @@ class UserService:
 
         except Exception as e:
             raise DatabaseError(f"Failed to request password change: {str(e)}")
+        
+
+
+    async def login(self, session: AsyncSession, payload: LoginSchema):
+
+        statement = select(User).where(User.email == payload.email)
+        result = await session.execute(statement)
+        user = result.scalar_one_or_none()
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password"
+            )
+
+        if not verify_password(payload.password, user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password"
+            )
+
+        if user.is_suspended:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account suspended"
+            )
+
+        if not user.is_verified:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account not verified"
+            )
+
+        # UPDATE LAST LOGIN HERE
+        user.last_login = datetime.utcnow()
+        session.add(user)
+
+        # Generate tokens
+        access_token = create_access_token(
+            data={"sub": str(user.id)}
+        )
+
+        refresh_token = create_refresh_token(
+            data={"sub": str(user.id)}
+        )
+
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer"
+        }
+
+
+
+
+
     
     # -------------------- Helpers -------------------- #
     
