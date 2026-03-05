@@ -164,12 +164,20 @@ async def admin_update_user(
     return user
 
 
-@user_router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@user_router.delete("/{user_id}", status_code=status.HTTP_200_OK)
 async def delete_user(
     user_id: UUID,
     session: AsyncSession = Depends(get_session),
 ):
-    await user_service.delete_user(session, user_id)
+    user = await user_service.get_user(session, user_id)
+
+    await user_service.delete_user(user)
+
+    await session.delete(user)
     await session.commit()
 
-    return None
+    return {
+    "success": True,
+    "message": "User deleted successfully",
+    "user_id": user_id
+}
