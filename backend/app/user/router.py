@@ -60,7 +60,8 @@ async def update_self(
     payload: UserUpdateSchema,
     session: AsyncSession = Depends(get_session),
 ):
-    user = await user_service.update_user(session, user_id, payload)
+    user = await user_service.get_user(session, user_id)
+    user = await user_service.update_user(user, payload)
 
     await session.commit()
     await session.refresh(user)
