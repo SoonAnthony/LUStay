@@ -243,6 +243,8 @@ class UserService:
         # UPDATE LAST LOGIN HERE
         user.last_login = datetime.utcnow()
         session.add(user)
+        await session.commit()
+        await session.refresh(user)
 
         # Generate tokens
         access_token = create_access_token(
