@@ -46,12 +46,12 @@ class UserSchema(BaseModel):
     first_name: str
     last_name: str
     profile_image: Optional[str] = None
+    email: EmailStr
+    phone_number: str
 
     model_config = ConfigDict(from_attributes=True)
 
 class UserSelfSchema(UserSchema):
-    email: EmailStr
-    phone_number: str
     role: UserRole
     is_verified: bool
     created_at: datetime
