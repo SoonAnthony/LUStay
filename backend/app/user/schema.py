@@ -92,6 +92,7 @@ class UserUpdateSchema(BaseModel):
 class AdminUserUpdateSchema(UserUpdateSchema):
     is_suspended: Optional[bool] = None
     role: Optional[UserRole] = None
+    is_verified: Optional[bool] = None
 
 class RequestEmailChangeSchema(BaseModel):
     new_email: EmailStr
