@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from sqlmodel.ext.asyncio.session import AsyncSession
 from typing import List
 from uuid import UUID
@@ -128,25 +128,13 @@ async def login(
     Authenticate a user and return access & refresh JWT tokens.
     """
     tokens = await user_service.login(session, payload)
-
-    # Update last login
-    result = await session.execute(select(User).where(User.email == payload.email))
-    user = result.scalar_one_or_none()
-    if user:
-        user.last_login = datetime.utcnow()
-        session.add(user)
-        await session.commit()
-    
     return tokens
-
 
 # ===============================
 # POST /auth/refresh
 # ===============================
 @user_router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(
-    refresh_token: str
-):
+async def refresh_token(refresh_token: str = Body(..., embed=True)):
     """
     Generate a new access token using a valid refresh token.
     """
