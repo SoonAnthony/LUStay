@@ -113,6 +113,12 @@ class RequestStatus(str, enum.Enum):
     REJECTED = "REJECTED"
 
 
+class DocumentType(str, enum.Enum):
+    TITLE_DEED = "TITLE_DEED"
+    LEASE_AGREEMENT = "LEASE_AGREEMENT"
+    AUTHORIZATION_LETTER = "AUTHORIZATION_LETTER"
+
+
 # LandlordRequest Model
 
 class LandlordRequest(SQLModel, table=True):
@@ -134,18 +140,34 @@ class LandlordRequest(SQLModel, table=True):
     # User who made the request
     user_id: uuid.UUID = Field(
         foreign_key="users.id",  
-        nullable=False
+        nullable=False,
+        index=True
     )
     user: Optional[User] = Relationship(
         back_populates="landlord_requests",
         sa_relationship_kwargs={"foreign_keys": "[LandlordRequest.user_id]"}
     )
 
+    document_type: DocumentType = Field(
+        sa_column=Column(
+            PGEnum(DocumentType, name="documenttype"),
+            nullable=False
+        )
+    )
+
+    document_url: str = Field(nullable=False)
+
+    document_public_id: str = Field(
+        nullable=False,
+        description="Cloudinary public ID used for file deletion"
+    )
+
     # Admin who approved/rejected
     admin_id: Optional[uuid.UUID] = Field(
         foreign_key="users.id",
         default=None,
-        nullable=True
+        nullable=True,
+        index=True
     )
     admin: Optional[User] = Relationship(
         back_populates="reviewed_requests",
@@ -161,7 +183,7 @@ class LandlordRequest(SQLModel, table=True):
         ),
     )
 
-    requested_at: datetime = Field(
+    submitted_at: datetime = Field(
         sa_column=Column(
             DateTime(timezone=True),
             server_default=func.now(),
@@ -173,7 +195,7 @@ class LandlordRequest(SQLModel, table=True):
         sa_column=Column(DateTime(timezone=True), nullable=True)
     )
 
-    reason: Optional[str] = Field(default=None, max_length=255)
+    rejection_reason: Optional[str] = Field(default=None, max_length=255)
 
 
     def __repr__(self):
