@@ -1,5 +1,6 @@
 from typing import List, Optional
 from datetime import datetime, timedelta
+import uuid
 from asyncpg import InvalidPasswordError
 from fastapi import HTTPException
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -7,7 +8,7 @@ from sqlmodel import select
 from sqlalchemy import desc, func
 from sqlalchemy.exc import IntegrityError
 
-from .models import User, UserRole
+from .models import User, UserRole, LandlordRequest, UserRole, RequestStatus,
 from .schema import (
     UserSchema,
     UserSelfSchema,
@@ -21,6 +22,10 @@ from .schema import (
     validate_password_strength,
     LoginSchema,
     TokenResponse,
+    LandlordRequestCreate, 
+    LandlordRequestUpdate, 
+    LandlordRequestRead
+
 )
 from .exceptions import UserAlreadyExistsError, UserNotFoundError, DatabaseError
 from app.core.security import verify_password, hash_password
@@ -265,3 +270,61 @@ class UserService:
     def _generate_otp(self, length: int = 6) -> str:
         import random
         return ''.join(str(random.randint(0, 9)) for _ in range(length))
+    
+class LandlordRequestService:
+
+    # -------------------- CREATE -------------------- #
+    async def create_request(self, session: AsyncSession, user_id: uuid.UUID, payload: LandlordRequestCreate):
+        """User creates a landlord request."""
+        new_request = LandlordRequest(
+            user_id=user_id,
+            document_type=payload.document_type,
+            document_url=payload.document_url,
+            document_public_id=payload.document_public_id,
+            status=RequestStatus.PENDING
+        )
+        session.add(new_request)
+        await session.commit()
+        await session.refresh(new_request)
+        return new_request
+
+    # -------------------- READ -------------------- #
+    async def get_request(self, session: AsyncSession, request_id: uuid.UUID):
+        """Fetch a single request."""
+        request = await session.get(LandlordRequest, request_id)
+        if not request:
+            raise HTTPException(status_code=404, detail="Landlord request not found")
+        return request
+
+    async def get_all_requests(self, session: AsyncSession, limit: int = 50, offset: int = 0):
+        """Fetch all requests with pagination."""
+        statement = select(LandlordRequest).offset(offset).limit(limit)
+        result = await session.exec(statement)
+        return result.all()
+
+    # -------------------- UPDATE / APPROVE / REJECT -------------------- #
+    async def update_request(self, session: AsyncSession, request_id: uuid.UUID, admin_id: uuid.UUID, payload: LandlordRequestUpdate):
+        """Admin approves or rejects a request."""
+        request = await session.get(LandlordRequest, request_id)
+        if not request:
+            raise HTTPException(status_code=404, detail="Landlord request not found")
+
+        # Update status and rejection reason
+        if payload.status:
+            request.status = payload.status
+            if payload.status == RequestStatus.APPROVED:
+                # Promote user to LANDLORD
+                user = await session.get(User, request.user_id)
+                user.role = UserRole.LANDLORD
+                session.add(user)
+
+        if payload.rejection_reason:
+            request.rejection_reason = payload.rejection_reason
+
+        request.admin_id = admin_id
+        request.reviewed_at = datetime.utcnow()
+
+        session.add(request)
+        await session.commit()
+        await session.refresh(request)
+        return request
