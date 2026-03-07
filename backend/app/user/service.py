@@ -8,7 +8,7 @@ from sqlmodel import select
 from sqlalchemy import desc, func
 from sqlalchemy.exc import IntegrityError
 
-from .models import User, UserRole, LandlordRequest, UserRole, RequestStatus,
+from .models import User, UserRole, LandlordRequest, RequestStatus
 from .schema import (
     UserSchema,
     UserSelfSchema,
