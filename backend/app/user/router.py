@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlmodel import select
 
 from app.db.engine import get_session
-from app.user.service import UserService
+from app.user.service import UserService, LandlordRequestService
 from app.user.schema import (
     UserSchema,
     AdminUserSchema,
@@ -19,6 +19,9 @@ from app.user.schema import (
     UserSelfSchema,
     LoginSchema,
     TokenResponse,
+    LandlordRequestCreate,
+    LandlordRequestRead,
+    LandlordRequestUpdate
 )
 from app.core.security import hash_password
 from .models import User
@@ -227,3 +230,83 @@ async def delete_user(
         "message": "User deleted successfully",
         "user_id": user_id
     }
+
+
+landlord_router = APIRouter(tags=["Landlord Requests"])
+landlord_service = LandlordRequestService()
+
+# ==============================
+# USER ROUTES
+# ==============================
+
+@landlord_router.post("/", response_model=LandlordRequestRead, status_code=status.HTTP_201_CREATED)
+async def create_landlord_request(
+    payload: LandlordRequestCreate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Create a new landlord request (for a user).
+    """
+    request = await landlord_service.create_request(session, current_user.id, payload)
+    return LandlordRequestRead.model_validate(request)
+
+
+@landlord_router.get("/", response_model=List[LandlordRequestRead])
+async def get_my_requests(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get all landlord requests submitted by the current user.
+    """
+    all_requests = await landlord_service.get_all_requests(session)
+    user_requests = [r for r in all_requests if r.user_id == current_user.id]
+    return [LandlordRequestRead.model_validate(r) for r in user_requests]
+
+
+@landlord_router.get("/{request_id}", response_model=LandlordRequestRead)
+async def get_my_request(
+    request_id: UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get a specific landlord request by ID (must belong to the user).
+    """
+    request = await landlord_service.get_request(session, request_id)
+    if request.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to view this request")
+    return LandlordRequestRead.model_validate(request)
+
+
+# ==============================
+# ADMIN ROUTES
+# ==============================
+
+admin_landlord_router = APIRouter(prefix="/admin/landlord-requests", tags=["Admin Landlord Requests"])
+
+@admin_landlord_router.get("/", response_model=List[LandlordRequestRead])
+async def get_all_requests(
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(get_current_admin)
+):
+    """
+    Admin: Get all landlord requests.
+    """
+    requests = await landlord_service.get_all_requests(session)
+    return [LandlordRequestRead.model_validate(r) for r in requests]
+
+
+@admin_landlord_router.patch("/{request_id}", response_model=LandlordRequestRead)
+async def review_request(
+    request_id: UUID,
+    payload: LandlordRequestUpdate,
+    session: AsyncSession = Depends(get_session),
+    admin: User = Depends(get_current_admin)
+):
+    """
+    Admin: Approve or reject a landlord request.
+    """
+    request = await landlord_service.update_request(session, request_id, admin.id, payload)
+    return LandlordRequestRead.model_validate(request)
