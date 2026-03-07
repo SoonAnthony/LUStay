@@ -1,10 +1,11 @@
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from datetime import datetime
 import uuid
-from .models import UserRole
+
+from sqlmodel import SQLModel
+from .models import UserRole, DocumentType, RequestStatus
 from typing import Optional, List
 import re
-from sqlmodel import SQLModel
 
 
 def validate_kenyan_phone(value: str) -> str:
@@ -55,6 +56,7 @@ class UserSelfSchema(UserSchema):
     role: UserRole
     is_verified: bool
     created_at: datetime
+    updated_at: datetime
     last_login: Optional[datetime] = None
 
 
@@ -117,10 +119,6 @@ class ChangePasswordSchema(BaseModel):
         return validate_password_strength(value)
     
 
-class LoginSchema(BaseModel):
-    email: EmailStr
-    password: str = Field(..., min_length=8, max_length=128)
-
 class PaginatedUsers(BaseModel):
     total: int
     limit: int
@@ -135,3 +133,24 @@ class TokenResponse(BaseModel):
 class LoginSchema(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
+
+class LandlordRequestCreate(BaseModel):
+    document_type: DocumentType
+    document_url: str
+    document_public_id: str 
+
+    model_config = ConfigDict(from_attributes=True)
+
+class LandlordRequestRead(LandlordRequestCreate):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    status: RequestStatus
+    rejection_reason: Optional[str]
+    submitted_at: datetime
+    reviewed_at: Optional[datetime]
+    admin_id: Optional[uuid.UUID]
+
+class LandlordRequest(SQLModel, table=True):
+    status: RequestStatus
+    rejection_reason: Optional[str]
+    admin_id: Optional[uuid.UUID]
