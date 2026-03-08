@@ -29,7 +29,7 @@ from .dependencies import (
     get_current_active_user,
     get_current_admin
 )
-from datetime import datetime
+
 
 user_router = APIRouter(tags=["Users"])
 user_service = UserService()
@@ -168,7 +168,7 @@ admin_router = APIRouter(prefix="/admin", tags=["Admin"])
 @admin_router.get("/users", response_model=PaginatedUsers)
 async def get_all_users(
     session: AsyncSession = Depends(get_session),
-    admin: User = Depends(get_current_admin)
+    _: User = Depends(get_current_admin)
 ):
     return await user_service.get_all_users(session)
 
@@ -177,7 +177,7 @@ async def get_all_users(
 async def get_user_admin(
     user_id: UUID,
     session: AsyncSession = Depends(get_session),
-    admin: User = Depends(get_current_admin)
+    _: User = Depends(get_current_admin)
 ):
     user = await user_service.get_user(session, user_id)
     if not user:
@@ -189,7 +189,7 @@ async def get_user_admin(
 async def create_user(
     payload: UserCreateSchema,
     session: AsyncSession = Depends(get_session),
-     _: User = Depends(get_current_admin)  # underscore signals "we're not using this variable"
+    _: User = Depends(get_current_admin)  # underscore signals "we're not using this variable"
 ):
     user = await user_service.create_user(
         session,
@@ -206,7 +206,7 @@ async def admin_update_user(
     user_id: UUID,
     payload: AdminUserUpdateSchema,
     session: AsyncSession = Depends(get_session),
-    admin: User = Depends(get_current_admin)
+    _: User = Depends(get_current_admin)
 ):
     user = await user_service.get_user(session, user_id)
     user = await user_service.admin_update_user(user, payload)
@@ -219,7 +219,7 @@ async def admin_update_user(
 async def delete_user(
     user_id: UUID,
     session: AsyncSession = Depends(get_session),
-    admin: User = Depends(get_current_admin)
+    _: User = Depends(get_current_admin)
 ):
     user = await user_service.get_user(session, user_id)
     await user_service.delete_user(user)
@@ -289,7 +289,7 @@ admin_landlord_router = APIRouter(prefix="/admin/landlord-requests", tags=["Admi
 @admin_landlord_router.get("/", response_model=List[LandlordRequestRead])
 async def get_all_requests(
     session: AsyncSession = Depends(get_session),
-    admin: User = Depends(get_current_admin)
+    _: User = Depends(get_current_admin)
 ):
     """
     Admin: Get all landlord requests.
