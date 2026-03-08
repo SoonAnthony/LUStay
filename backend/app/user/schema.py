@@ -153,3 +153,13 @@ class LandlordRequestRead(LandlordRequestCreate):
 class LandlordRequestUpdate(BaseModel):
     status: RequestStatus
     rejection_reason: Optional[str] = None
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RefreshTokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
