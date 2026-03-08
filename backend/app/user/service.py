@@ -1,8 +1,10 @@
 from typing import List, Optional
 from datetime import datetime, timedelta
+from urllib import request
 import uuid
 from asyncpg import InvalidPasswordError
 from fastapi import HTTPException
+from httpx import request
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 from sqlalchemy import desc, func
@@ -303,28 +305,49 @@ class LandlordRequestService:
         return result.all()
 
     # -------------------- UPDATE / APPROVE / REJECT -------------------- #
-    async def update_request(self, session: AsyncSession, request_id: uuid.UUID, admin_id: uuid.UUID, payload: LandlordRequestUpdate):
+    async def update_request(
+    self,
+    session: AsyncSession,
+    request_id: uuid.UUID,
+    admin_id: uuid.UUID,
+    payload: LandlordRequestUpdate
+):
         """Admin approves or rejects a request."""
+
         request = await session.get(LandlordRequest, request_id)
+
         if not request:
             raise HTTPException(status_code=404, detail="Landlord request not found")
 
-        # Update status and rejection reason
-        if payload.status:
-            request.status = payload.status
-            if payload.status == RequestStatus.APPROVED:
-                # Promote user to LANDLORD
-                user = await session.get(User, request.user_id)
-                user.role = UserRole.LANDLORD
-                session.add(user)
+        # Prevent reviewing twice
+        if request.status != RequestStatus.PENDING:
+            raise HTTPException(
+                status_code=400,
+                detail="This request has already been reviewed"
+            )
 
-        if payload.rejection_reason:
-            request.rejection_reason = payload.rejection_reason
+        # Validate rejection reason
+        if payload.status == RequestStatus.REJECTED and not payload.rejection_reason:
+            raise HTTPException(
+                status_code=400,
+                detail="Rejection reason is required when rejecting a request"
+            )
 
+        # Update request status
+        request.status = payload.status
+        request.rejection_reason = payload.rejection_reason
         request.admin_id = admin_id
         request.reviewed_at = datetime.utcnow()
 
+        # If approved → promote user
+        if payload.status == RequestStatus.APPROVED:
+            user = await session.get(User, request.user_id)
+            user.role = UserRole.LANDLORD
+            session.add(user)
+
         session.add(request)
+
         await session.commit()
         await session.refresh(request)
+
         return request
