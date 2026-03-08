@@ -30,6 +30,7 @@ from .dependencies import (
     get_current_active_user,
     get_current_admin
 )
+from app.user.utils import create_access_token, create_refresh_token, decode_refresh_token
 
 
 user_router = APIRouter(tags=["Users"])
@@ -142,7 +143,8 @@ async def refresh_token(refresh_token: str = Body(..., embed=True)):
     """
     Generate a new access token using a valid refresh token.
     """
-    payload = user_service.decode_refresh_token(refresh_token)
+    # Decode the refresh token
+    payload = decode_refresh_token(refresh_token)
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -150,8 +152,15 @@ async def refresh_token(refresh_token: str = Body(..., embed=True)):
         )
 
     user_id = payload.get("sub")
-    access_token = user_service.create_access_token(data={"sub": user_id})
-    new_refresh_token = user_service.create_refresh_token(data={"sub": user_id})
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid refresh token payload"
+        )
+
+    # Generate new tokens using the module-level functions
+    access_token = create_access_token(data={"sub": user_id})
+    new_refresh_token = create_refresh_token(data={"sub": user_id})
 
     return {
         "access_token": access_token,
