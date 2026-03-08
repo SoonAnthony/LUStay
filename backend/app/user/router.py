@@ -139,10 +139,14 @@ async def login(
 # POST /auth/refresh
 # ===============================
 @user_router.post("/refresh", response_model=RefreshTokenResponse)
-async def refresh_token(refresh_token: str = Body(..., embed=True)):
+async def refresh_token(
+    refresh_token: str = Body(..., embed=True),
+    session: AsyncSession = Depends(get_session)
+):
     """
     Generate a new access token using a valid refresh token.
     """
+
     # Decode the refresh token
     payload = decode_refresh_token(refresh_token)
     if not payload:
@@ -155,10 +159,23 @@ async def refresh_token(refresh_token: str = Body(..., embed=True)):
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token payload"
+            detail="Invalid token payload"
         )
 
-    # Generate new tokens using the module-level functions
+    # Check that the user exists and is active
+    user = await user_service.get_user(session, user_id)
+    if user.is_suspended:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is suspended"
+        )
+    if not user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account not verified"
+        )
+
+    # Generate new tokens
     access_token = create_access_token(data={"sub": user_id})
     new_refresh_token = create_refresh_token(data={"sub": user_id})
 
