@@ -275,9 +275,27 @@ class UserService:
     
 class LandlordRequestService:
 
+
     # -------------------- CREATE -------------------- #
     async def create_request(self, session: AsyncSession, user_id: uuid.UUID, payload: LandlordRequestCreate):
-        """User creates a landlord request."""
+            
+        """User creates a landlord request, restricted to one pending request at a time."""
+
+        # Check if user already has a pending request
+        statement = select(LandlordRequest).where(
+            LandlordRequest.user_id == user_id,
+            LandlordRequest.status == RequestStatus.PENDING
+        )
+        result = await session.execute(statement)
+        existing_request = result.scalar_one_or_none()
+
+        if existing_request:
+            raise HTTPException(
+                status_code=400,
+                detail="You already have a pending landlord request."
+            )
+
+        # Create new request
         new_request = LandlordRequest(
             user_id=user_id,
             document_type=payload.document_type,
@@ -289,7 +307,7 @@ class LandlordRequestService:
         await session.commit()
         await session.refresh(new_request)
         return new_request
-
+    
     # -------------------- READ -------------------- #
     async def get_request(self, session: AsyncSession, request_id: uuid.UUID):
         """Fetch a single request."""
