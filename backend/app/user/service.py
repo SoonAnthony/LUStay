@@ -31,7 +31,7 @@ from .schema import (
 )
 from .exceptions import UserAlreadyExistsError, UserNotFoundError, DatabaseError
 from app.core.security import verify_password, hash_password
-from .utils import create_access_token, create_refresh_token, decode_access_token
+from .utils import create_access_token, create_refresh_token, decode_access_token, decode_refresh_token
 from fastapi import HTTPException, status
 
 
@@ -261,7 +261,10 @@ class UserService:
             "refresh_token": refresh_token,
             "token_type": "bearer"
         }
-
+    
+    def decode_refresh_token(self, token: str) -> Optional[dict]:
+        from .utils import decode_refresh_token as decode_fn
+        return decode_fn(token)
 
 
 
