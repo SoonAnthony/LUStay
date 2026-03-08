@@ -32,3 +32,13 @@ def decode_access_token(token: str) -> Optional[dict]:
     except JWTError:
         return None
     
+def decode_refresh_token(token: str) -> Optional[dict]:
+    from jose import JWTError
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        if payload.get("type") != "refresh":
+            raise JWTError("Invalid token type")
+        return payload
+    except JWTError:
+        return None
+    
