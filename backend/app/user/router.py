@@ -232,7 +232,7 @@ async def delete_user(
     }
 
 
-landlord_router = APIRouter(tags=["Landlord Requests"])
+landlord_router = APIRouter(prefix="/me/landlord-requests", tags=["Landlord Requests"])
 landlord_service = LandlordRequestService()
 
 # ==============================
