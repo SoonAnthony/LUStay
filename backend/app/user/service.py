@@ -1,5 +1,5 @@
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib import request
 import uuid
 from asyncpg import InvalidPasswordError
@@ -159,7 +159,7 @@ class UserService:
 
             user.pending_email = payload.new_email
             user.email_otp = self._generate_otp()
-            user.otp_expiry = datetime.utcnow() + timedelta(minutes=15)
+            user.otp_expiry = datetime.now(timezone.utc) + timedelta(minutes=15)
             session.add(user)
             return user
         except Exception as e:
@@ -181,7 +181,7 @@ class UserService:
 
             user.pending_phone = payload.new_phone
             user.phone_otp = self._generate_otp()
-            user.otp_expiry = datetime.utcnow() + timedelta(minutes=15)
+            user.otp_expiry = datetime.now(timezone.utc) + timedelta(minutes=15)
             session.add(user)
             return user
         except Exception as e:
@@ -207,7 +207,7 @@ class UserService:
             # Hash the new password before storing
             user.pending_password = hash_password(payload.new_password)
             user.password_otp = self._generate_otp()
-            user.otp_expiry = datetime.utcnow() + timedelta(minutes=15)
+            user.otp_expiry = datetime.now(timezone.utc) + timedelta(minutes=15)
 
             session.add(user)
             return user
@@ -242,7 +242,7 @@ class UserService:
             )
 
         # UPDATE LAST LOGIN HERE
-        user.last_login = datetime.utcnow()
+        user.last_login = datetime.now(timezone.utc)
         session.add(user)
         await session.commit()
         await session.refresh(user)
@@ -301,7 +301,8 @@ class LandlordRequestService:
             document_type=payload.document_type,
             document_url=payload.document_url,
             document_public_id=payload.document_public_id,
-            status=RequestStatus.PENDING
+            status=RequestStatus.PENDING,
+            submitted_at=datetime.now(timezone.utc)
         )
         session.add(new_request)
         await session.commit()
@@ -355,7 +356,7 @@ class LandlordRequestService:
         request.status = payload.status
         request.rejection_reason = payload.rejection_reason
         request.admin_id = admin_id
-        request.reviewed_at = datetime.utcnow()
+        request.reviewed_at = datetime.now(timezone.utc)
 
         # If approved → promote user
         if payload.status == RequestStatus.APPROVED:
