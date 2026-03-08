@@ -7,6 +7,7 @@ from sqlmodel import select
 from app.db.engine import get_session
 from app.user.service import UserService, LandlordRequestService
 from app.user.schema import (
+    RefreshTokenResponse,
     UserSchema,
     AdminUserSchema,
     UserCreateSchema,
@@ -136,7 +137,7 @@ async def login(
 # ===============================
 # POST /auth/refresh
 # ===============================
-@user_router.post("/refresh", response_model=TokenResponse)
+@user_router.post("/refresh", response_model=RefreshTokenResponse)
 async def refresh_token(refresh_token: str = Body(..., embed=True)):
     """
     Generate a new access token using a valid refresh token.
