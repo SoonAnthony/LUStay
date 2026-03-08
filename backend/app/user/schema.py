@@ -150,7 +150,6 @@ class LandlordRequestRead(LandlordRequestCreate):
     reviewed_at: Optional[datetime]
     admin_id: Optional[uuid.UUID]
 
-class LandlordRequest(SQLModel, table=True):
+class LandlordRequestUpdate(BaseModel):
     status: RequestStatus
-    rejection_reason: Optional[str]
-    admin_id: Optional[uuid.UUID]
+    rejection_reason: Optional[str] = None
