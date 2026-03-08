@@ -31,17 +31,14 @@ api_v1_router.include_router(
 )
 
 api_v1_router.include_router(
-    admin_router,
-    tags=["Admin"]
+    admin_router
 )
 api_v1_router.include_router(
     landlord_router,
     prefix="/users",
-    tags=["Landlord"]
 )
 api_v1_router.include_router(
-    admin_landlord_router,
-    tags=["Admin Landlord"]
+    admin_landlord_router
 )
 
 # ✅ Register version router in app
