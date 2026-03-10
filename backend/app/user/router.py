@@ -190,7 +190,7 @@ async def refresh_token(
 # ADMIN ROUTES
 # ============================================================
 
-admin_router = APIRouter(prefix="/admin", tags=["Admin"])
+admin_router = APIRouter(prefix="/admin", tags=["Admin Users"])
 
 @admin_router.get("/users", response_model=PaginatedUsers)
 async def get_all_users(
