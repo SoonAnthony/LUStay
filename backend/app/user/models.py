@@ -6,7 +6,9 @@ import enum
 import uuid
 from datetime import datetime
 from pydantic import EmailStr
-
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from app.hostels.models import Hostel
 
 # User Role Enum
 class UserRole(str, enum.Enum):
@@ -100,7 +102,7 @@ class User(SQLModel, table=True):
         back_populates="admin",
         sa_relationship_kwargs={"foreign_keys": "[LandlordRequest.admin_id]"}
     )
-
+    hostels: List["Hostel"] = Relationship(back_populates="owner")
     def __repr__(self):
         return f"<User(email={self.email}, role={self.role})>"
 
