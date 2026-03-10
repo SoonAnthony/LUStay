@@ -8,6 +8,40 @@ from sqlalchemy.dialects.postgresql import UUID
 from app.user.models import User
 
 
+
+
+class HostelAmenity(SQLModel, table=True):
+
+    __tablename__ = "hostel_amenities"
+
+    hostel_id: uuid.UUID = Field(
+        foreign_key="hostels.id",
+        primary_key=True
+    )
+
+    amenity_id: uuid.UUID = Field(
+        foreign_key="amenities.id",
+        primary_key=True
+    )
+
+
+class Amenity(SQLModel, table=True):
+
+    __tablename__ = "amenities"
+
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        sa_column=Column(UUID(as_uuid=True), primary_key=True, nullable=False)
+    )
+
+    name: str = Field(index=True, unique=True)
+
+    hostels: List["Hostel"] = Relationship(
+        back_populates="amenities",
+        link_model=HostelAmenity
+    )
+
+
 class HostelStatus(str, Enum):
     PENDING = "PENDING"
     APPROVED = "APPROVED"
@@ -153,33 +187,3 @@ class HostelBlock(SQLModel, table=True):
     hostel: Optional["Hostel"] = Relationship(back_populates="blocks")
 
 
-class HostelAmenity(SQLModel, table=True):
-
-    __tablename__ = "hostel_amenities"
-
-    hostel_id: uuid.UUID = Field(
-        foreign_key="hostels.id",
-        primary_key=True
-    )
-
-    amenity_id: uuid.UUID = Field(
-        foreign_key="amenities.id",
-        primary_key=True
-    )
-
-
-class Amenity(SQLModel, table=True):
-
-    __tablename__ = "amenities"
-
-    id: uuid.UUID = Field(
-        default_factory=uuid.uuid4,
-        sa_column=Column(UUID(as_uuid=True), primary_key=True, nullable=False)
-    )
-
-    name: str = Field(index=True, unique=True)
-
-    hostels: List["Hostel"] = Relationship(
-        back_populates="amenities",
-        link_model=HostelAmenity
-    )
