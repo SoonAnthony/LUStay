@@ -67,10 +67,12 @@ class Hostel(SQLModel, table=True):
     # -----------------------------
 
     owner: Optional["User"] = Relationship(back_populates="hostels")
-
     images: List["HostelImage"] = Relationship(back_populates="hostel")
-
     blocks: List["HostelBlock"] = Relationship(back_populates="hostel")
+    amenities: List["Amenity"] = Relationship(
+        back_populates="hostels",
+        link_model="HostelAmenity"
+    )
 
 
 class HostelImage(SQLModel, table=True):
@@ -90,10 +92,24 @@ class HostelImage(SQLModel, table=True):
 
     image_url: str
     public_id: str
-
     is_primary: bool = Field(default=False)
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(
+        sa_column=Column(
+            DateTime(timezone=True),
+            server_default=func.now(),
+            nullable=False
+        )
+    )
+
+    updated_at: datetime = Field(
+        sa_column=Column(
+            DateTime(timezone=True),
+            server_default=func.now(),
+            onupdate=func.now(),
+            nullable=False
+        )
+    )
 
     hostel: Optional["Hostel"] = Relationship(back_populates="images")
 
@@ -114,10 +130,56 @@ class HostelBlock(SQLModel, table=True):
     )
 
     data: str  # JSON snapshot of hostel state
-
     previous_hash: Optional[str] = None
     hash: str
 
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(
+        sa_column=Column(
+            DateTime(timezone=True),
+            server_default=func.now(),
+            nullable=False
+        )
+    )
+
+    updated_at: datetime = Field(
+        sa_column=Column(
+            DateTime(timezone=True),
+            server_default=func.now(),
+            onupdate=func.now(),
+            nullable=False
+        )
+    )
 
     hostel: Optional["Hostel"] = Relationship(back_populates="blocks")
+
+
+class HostelAmenity(SQLModel, table=True):
+
+    __tablename__ = "hostel_amenities"
+
+    hostel_id: uuid.UUID = Field(
+        foreign_key="hostels.id",
+        primary_key=True
+    )
+
+    amenity_id: uuid.UUID = Field(
+        foreign_key="amenities.id",
+        primary_key=True
+    )
+
+
+class Amenity(SQLModel, table=True):
+
+    __tablename__ = "amenities"
+
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        sa_column=Column(UUID(as_uuid=True), primary_key=True, nullable=False)
+    )
+
+    name: str = Field(index=True, unique=True)
+
+    hostels: List["Hostel"] = Relationship(
+        back_populates="amenities",
+        link_model=HostelAmenity
+    )
