@@ -15,7 +15,7 @@ class HostelService:
         text = f"{data}{previous_hash or ''}"
         return hashlib.sha256(text.encode()).hexdigest()
 
-    async def create_hostel(self, data) -> Hostel:
+    async def create_hostel(self, data, owner_id: UUID) -> Hostel:
         hostel = Hostel(
             name=data.name,
             description=data.description,
@@ -23,7 +23,7 @@ class HostelService:
             latitude=data.latitude,
             longitude=data.longitude,
             status=data.status,
-            owner_id=data.owner_id
+            owner_id=owner_id  
         )
 
         self.session.add(hostel)
