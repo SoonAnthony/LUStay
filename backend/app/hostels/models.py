@@ -105,7 +105,7 @@ class Hostel(SQLModel, table=True):
     blocks: List["HostelBlock"] = Relationship(back_populates="hostel")
     amenities: List["Amenity"] = Relationship(
         back_populates="hostels",
-        link_model="HostelAmenity"
+        link_model=HostelAmenity
     )
 
 
