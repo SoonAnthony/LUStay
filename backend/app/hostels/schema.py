@@ -28,7 +28,7 @@ class AmenityRead(AmenityBase):
     id: UUID
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # ================================
@@ -55,7 +55,7 @@ class HostelUpdate(BaseModel):
     amenity_ids: Optional[List[UUID]] = None  # update amenities
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class HostelRead(HostelBase):
     id: UUID
@@ -65,7 +65,7 @@ class HostelRead(HostelBase):
     blocks: Optional[List["HostelBlockRead"]] = []
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # ================================
@@ -86,7 +86,7 @@ class HostelImageRead(HostelImageBase):
     updated_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # ================================
@@ -107,4 +107,4 @@ class HostelBlockRead(HostelBlockBase):
     updated_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
