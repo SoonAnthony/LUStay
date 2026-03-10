@@ -3,6 +3,7 @@ from fastapi import FastAPI, APIRouter
 from .db.engine import engine
 from sqlalchemy import text
 from app.user.router import user_router, admin_router, landlord_router, admin_landlord_router
+from app.hostels.router import hostel_router, admin_hostel_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -39,6 +40,12 @@ api_v1_router.include_router(
 )
 api_v1_router.include_router(
     admin_landlord_router
+)
+api_v1_router.include_router(
+    hostel_router
+)
+api_v1_router.include_router(
+    admin_hostel_router
 )
 
 # ✅ Register version router in app
