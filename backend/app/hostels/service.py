@@ -138,9 +138,6 @@ class HostelService:
         return result.scalars().first()
 
 
-# -----------------------
-# AMENITY SERVICE
-# -----------------------
 
 class AmenityService:
 
@@ -226,9 +223,6 @@ class AmenityService:
         return True
 
 
-# -----------------------
-# IMAGE SERVICE
-# -----------------------
 
 class HostelImageService:
 
