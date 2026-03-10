@@ -13,7 +13,7 @@ from app.hostels.schema import (
 )
 
 from .models import Hostel
-from app.user.models import User
+from app.user.models import User, UserRole
 
 from app.user.dependencies import (
     get_current_active_user,
@@ -22,10 +22,12 @@ from app.user.dependencies import (
 
 
 hostel_router = APIRouter(prefix="/hostels", tags=["Hostels"])
-
 hostel_service = HostelService()
 
 
+# ============================================================
+# PUBLIC ROUTES
+# ============================================================
 
 @hostel_router.get("/", response_model=List[HostelRead])
 async def get_all_hostels(
@@ -51,6 +53,9 @@ async def get_hostel(
     return hostel
 
 
+# ============================================================
+# LANDLORD / ADMIN ROUTES
+# ============================================================
 
 @hostel_router.post("/", response_model=HostelRead, status_code=201)
 async def create_hostel(
@@ -58,6 +63,16 @@ async def create_hostel(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_active_user)
 ):
+    """
+    Only LANDLORD or ADMIN can create hostels
+    """
+
+    if current_user.role not in [UserRole.LANDLORD, UserRole.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only landlords or admins can create hostels"
+        )
+
     hostel = await hostel_service.create_hostel(
         session,
         payload,
@@ -83,7 +98,8 @@ async def update_hostel(
     if not hostel:
         raise HTTPException(status_code=404, detail="Hostel not found")
 
-    if hostel.landlord_id != current_user.id:
+    # Admin can edit any hostel
+    if current_user.role != UserRole.ADMIN and hostel.owner_id != current_user.id:
         raise HTTPException(
             status_code=403,
             detail="Not authorized to update this hostel"
@@ -109,7 +125,8 @@ async def delete_hostel(
     if not hostel:
         raise HTTPException(status_code=404, detail="Hostel not found")
 
-    if hostel.landlord_id != current_user.id:
+    # Admin can delete any hostel
+    if current_user.role != UserRole.ADMIN and hostel.owner_id != current_user.id:
         raise HTTPException(
             status_code=403,
             detail="Not authorized to delete this hostel"
@@ -123,6 +140,10 @@ async def delete_hostel(
         "message": "Hostel deleted successfully"
     }
 
+
+# ============================================================
+# ADMIN ROUTES
+# ============================================================
 
 admin_hostel_router = APIRouter(
     prefix="/admin/hostels",
