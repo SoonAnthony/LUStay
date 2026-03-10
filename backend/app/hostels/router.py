@@ -12,7 +12,7 @@ from app.hostels.schema import (
     HostelRead
 )
 
-from app.hostels.models import Hostel
+from .models import Hostel
 from app.user.models import User
 
 from app.user.dependencies import (
