@@ -5,7 +5,9 @@ from enum import Enum
 from pydantic import BaseModel
 
 
-
+# ================================
+# Enums
+# ================================
 class HostelStatus(str, Enum):
     PENDING = "PENDING"
     APPROVED = "APPROVED"
@@ -13,6 +15,9 @@ class HostelStatus(str, Enum):
     SUSPENDED = "SUSPENDED"
 
 
+# ================================
+# Amenity Schemas
+# ================================
 class AmenityBase(BaseModel):
     name: str
 
@@ -26,7 +31,9 @@ class AmenityRead(AmenityBase):
         orm_mode = True
 
 
-
+# ================================
+# Hostel Schemas
+# ================================
 class HostelBase(BaseModel):
     name: str
     description: Optional[str]
@@ -36,8 +43,19 @@ class HostelBase(BaseModel):
     status: HostelStatus = HostelStatus.PENDING
 
 class HostelCreate(HostelBase):
-    owner_id: UUID
     amenity_ids: Optional[List[UUID]] = []
+
+class HostelUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    location: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    status: Optional[HostelStatus] = None
+    amenity_ids: Optional[List[UUID]] = None  # update amenities
+
+    class Config:
+        orm_mode = True
 
 class HostelRead(HostelBase):
     id: UUID
@@ -50,7 +68,9 @@ class HostelRead(HostelBase):
         orm_mode = True
 
 
-
+# ================================
+# Hostel Image Schemas
+# ================================
 class HostelImageBase(BaseModel):
     image_url: str
     public_id: str
@@ -69,7 +89,9 @@ class HostelImageRead(HostelImageBase):
         orm_mode = True
 
 
-
+# ================================
+# Hostel Block Schemas
+# ================================
 class HostelBlockBase(BaseModel):
     data: str
     previous_hash: Optional[str]
