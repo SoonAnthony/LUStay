@@ -231,21 +231,36 @@ class HostelImageService:
         self.hostel_service = hostel_service
 
     async def add_image(self, data: HostelImageCreate) -> HostelImage:
-
         hostel = await self.hostel_service.get_hostel(data.hostel_id)
 
         if not hostel:
             raise ValueError("Hostel does not exist")
 
+        # Fetch existing images for this hostel
+        result = await self.session.execute(
+            select(HostelImage).where(HostelImage.hostel_id == data.hostel_id)
+        )
+        existing_images = result.scalars().all()
+
+        # If this is the first image, force it to be primary
+        if not existing_images:
+            data.is_primary = True
+
+        # If adding a primary image, reset others
+        if data.is_primary:
+            for img in existing_images:
+                img.is_primary = False
+
+        # Create the new image
         image = HostelImage(
             hostel_id=data.hostel_id,
             image_url=data.image_url,
             public_id=data.public_id,
             is_primary=data.is_primary
         )
-
         self.session.add(image)
 
+        # Add a blockchain record for this action
         previous_block = await self.hostel_service._get_last_block(data.hostel_id)
         previous_hash = previous_block.hash if previous_block else None
 
@@ -258,11 +273,9 @@ class HostelImageService:
                 previous_hash
             )
         )
-
         self.session.add(block)
 
         return image
-
     async def delete_image(self, image_id: UUID) -> bool:
 
         result = await self.session.execute(
