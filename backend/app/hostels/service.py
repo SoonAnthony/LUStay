@@ -114,36 +114,32 @@ class HostelService:
         status: Optional[HostelStatus] = None, 
     ) -> dict:
         """Fetch all hostels with optional status filter and pagination."""
-        try:
-            # Base query
-            base_query = select(Hostel)
-            if status:
-                base_query = base_query.where(Hostel.status == status)
+        # Base query
+        base_query = select(Hostel)
+        if status:
+            base_query = base_query.where(Hostel.status == status)
 
-            # Data query with pagination
-            data_query = (
-                base_query
-                .order_by(desc(Hostel.created_at))
-                .offset(offset)
-                .limit(limit)
-            )
-            result = await self.session.execute(data_query)
-            hostels = result.scalars().all()
+        # Data query with pagination
+        data_query = (
+            base_query
+            .order_by(desc(Hostel.created_at))
+            .offset(offset)
+            .limit(limit)
+        )
+        result = await self.session.execute(data_query)
+        hostels = result.scalars().all()
 
-            # Count query
-            count_query = select(func.count()).select_from(base_query.subquery())
-            total_result = await self.session.execute(count_query)
-            total = total_result.scalar_one()
+        # Count query
+        count_query = select(func.count()).select_from(base_query.subquery())
+        total_result = await self.session.execute(count_query)
+        total = total_result.scalar_one()
 
-            return {
-                "total": total,
-                "limit": limit,
-                "offset": offset,
-                "hostels": [HostelSchema.model_validate(h) for h in hostels],
-            }
-
-        except Exception as e:
-            raise DatabaseError(f"Failed to fetch hostels: {str(e)}")
+        return {
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "hostels": [HostelRead.model_validate(h) for h in hostels],
+        }
 
     async def get_blockchain_history(self, hostel_id: UUID) -> List[dict]:
 
