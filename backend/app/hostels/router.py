@@ -61,13 +61,19 @@ async def create_hostel(
     hostel_service: HostelService = Depends(get_hostel_service),
     current_user: User = Depends(get_current_active_user)
 ):
+    # Authorization check
     if current_user.role not in [UserRole.LANDLORD, UserRole.ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only landlords or admins can create hostels"
         )
 
-    hostel = await hostel_service.create_hostel(payload, current_user.id)
+    # Create hostel
+    hostel = await hostel_service.create_hostel(
+        payload=payload,
+        owner_id=current_user.id
+    )
+
     await hostel_service.session.commit()
     await hostel_service.session.refresh(hostel)
 
