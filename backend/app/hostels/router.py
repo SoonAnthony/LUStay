@@ -6,7 +6,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.db.engine import get_session
 from app.hostels.service import HostelService
-from app.hostels.schema import HostelCreate, HostelUpdate, HostelRead
+from app.hostels.schema import HostelCreate, HostelUpdate, HostelRead, PaginatedHostels
 from .models import Hostel
 from app.user.models import User, UserRole
 from app.user.dependencies import get_current_active_user, get_current_admin
@@ -31,7 +31,7 @@ admin_hostel_router = APIRouter(prefix="/admin/hostels", tags=["Admin Hostels"])
 # ============================================================
 # PUBLIC ROUTES
 # ============================================================
-@hostel_router.get("/", response_model=List[HostelRead])
+@hostel_router.get("/", response_model=PaginatedHostels)
 async def get_all_hostels(
     hostel_service: HostelService = Depends(get_hostel_service)
 ):
