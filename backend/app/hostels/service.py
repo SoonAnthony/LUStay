@@ -292,3 +292,46 @@ class HostelImageService:
         await self.session.delete(image)
 
         return True
+    
+    async def set_primary_image(self, image_id: UUID) -> Optional[HostelImage]:
+
+        result = await self.session.execute(
+            select(HostelImage).where(HostelImage.id == image_id)
+        )
+
+        image = result.scalar_one_or_none()
+
+        if not image:
+            return None
+
+        hostel_id = image.hostel_id
+
+        # Reset all images for this hostel
+        result = await self.session.execute(
+            select(HostelImage).where(HostelImage.hostel_id == hostel_id)
+        )
+
+        images = result.scalars().all()
+
+        for img in images:
+            img.is_primary = False
+
+        # Set selected image as primary
+        image.is_primary = True
+
+        previous_block = await self.hostel_service._get_last_block(hostel_id)
+        previous_hash = previous_block.hash if previous_block else None
+
+        block = HostelBlock(
+            hostel_id=hostel_id,
+            data=f"Set primary image {image.image_url}",
+            previous_hash=previous_hash,
+            hash=self.hostel_service.generate_hash(
+                f"Set primary image {image.image_url}",
+                previous_hash
+            )
+        )
+
+        self.session.add(block)
+
+        return image
