@@ -108,3 +108,12 @@ class HostelBlockRead(HostelBlockBase):
 
     class Config:
         from_attributes = True
+
+class PaginatedHostels(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    hostels: List[HostelRead]
+
+    class Config:
+        from_attributes = True
