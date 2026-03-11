@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from typing import List
 from uuid import UUID
 
@@ -10,7 +10,6 @@ import cloudinary.uploader
 from app.db.engine import get_session
 from app.hostels.service import HostelService, HostelImageService
 from app.hostels.schema import HostelImageCreate, HostelImageRead
-from app.hostels.models import Hostel
 from app.user.dependencies import get_current_active_user
 from app.user.models import User, UserRole
 from app.hostels.models import HostelImage
