@@ -36,7 +36,7 @@ async def get_public_hostels(
     hostel_service: HostelService = Depends(get_hostel_service)
 ):
     hostels = await hostel_service.get_all_hostels(status=HostelStatus.APPROVED)
-    return hostels["hostels"]
+    return hostels.hostels
 
 
 @hostel_router.get("/{hostel_id}", response_model=HostelRead)
