@@ -46,7 +46,7 @@ class User(SQLModel, table=True):
         description="Kenyan phone number 07XXX or +2547XXX"
     )
 
-    profile_image: Optional[str] = Field(default=None)
+    profile_image: str | None = Field(default=None, max_length=500)
 
     role: UserRole = Field(
         sa_column=Column(
@@ -71,6 +71,7 @@ class User(SQLModel, table=True):
         sa_column=Column(
             DateTime(timezone=True),
             server_default=func.now(),
+            onupdate=func.now(),
             nullable=False
         )
     )
@@ -85,7 +86,10 @@ class User(SQLModel, table=True):
     pending_phone: Optional[str] = Field(default=None, max_length=13)
     email_otp: Optional[str] = Field(default=None, max_length=6)
     phone_otp: Optional[str] = Field(default=None, max_length=6)
-    otp_expiry: Optional[datetime] = Field(default=None)
+    otp_expiry: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True))
+    )
 
     # Temporary fields for password verification
     pending_password: Optional[str] = Field(default=None, max_length=128)
@@ -105,7 +109,10 @@ class User(SQLModel, table=True):
         back_populates="admin",
         sa_relationship_kwargs={"foreign_keys": "[LandlordRequest.admin_id]"}
     )
-    hostels: List["Hostel"] = Relationship(back_populates="owner")
+    hostels: List["Hostel"] = Relationship(
+        back_populates="owner",
+        sa_relationship_kwargs={"lazy": "selectin"}
+    )
     def __repr__(self):
         return f"<User(email={self.email}, role={self.role})>"
 
