@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -7,7 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.db.engine import get_session
 from app.hostels.service import HostelService
 from app.hostels.schema import HostelCreate, HostelUpdate, HostelRead, PaginatedHostels
-from .models import Hostel
+from .models import Hostel, HostelStatus
 from app.user.models import User, UserRole
 from app.user.dependencies import get_current_active_user, get_current_admin
 
@@ -131,13 +131,19 @@ async def delete_hostel(
 # ============================================================
 # ADMIN ROUTES
 # ============================================================
-@admin_hostel_router.get("/", response_model=List[HostelRead])
+@admin_hostel_router.get("/", response_model=PaginatedHostels)
 async def admin_get_all_hostels(
+    limit: int = 50,
+    offset: int = 0,
+    status: Optional[HostelStatus] = None,
     hostel_service: HostelService = Depends(get_hostel_service),
     _: User = Depends(get_current_admin)
 ):
-    hostels = await hostel_service.get_all_hostels()
-    return hostels
+    return await hostel_service.get_all_hostels(
+        limit=limit,
+        offset=offset,
+        status=status
+    )
 
 
 @admin_hostel_router.delete("/{hostel_id}")
