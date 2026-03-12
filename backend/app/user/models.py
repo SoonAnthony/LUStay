@@ -75,7 +75,10 @@ class User(SQLModel, table=True):
         )
     )
 
-    last_login: Optional[datetime] = Field(default=None)
+    last_login: datetime | None = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True))
+    )
 
     # Temporary fields for email/phone verification
     pending_email: Optional[EmailStr] = Field(default=None, max_length=150)
