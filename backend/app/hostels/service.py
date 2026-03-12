@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.hostels.models import Amenity, Hostel, HostelAmenity, HostelImage, HostelBlock
-from app.hostels.schema import AmenityCreate, HostelImageCreate, HostelRead, HostelStatus
+from app.hostels.schema import AmenityCreate, HostelImageCreate, HostelRead, HostelStatus, PaginatedHostels
 import hashlib
 from sqlalchemy import func, desc
 
@@ -134,12 +134,12 @@ class HostelService:
         total_result = await self.session.execute(count_query)
         total = total_result.scalar_one()
 
-        return {
-            "total": total,
-            "limit": limit,
-            "offset": offset,
-            "hostels": [HostelRead.model_validate(h) for h in hostels],
-        }
+        return PaginatedHostels(
+            total= total,
+            limit=limit,
+            offset=offset,
+            hostels=[HostelRead.model_validate(h) for h in hostels],
+        )
 
     async def get_blockchain_history(self, hostel_id: UUID) -> List[dict]:
 
