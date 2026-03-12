@@ -31,12 +31,12 @@ admin_hostel_router = APIRouter(prefix="/admin/hostels", tags=["Admin Hostels"])
 # ============================================================
 # PUBLIC ROUTES
 # ============================================================
-@hostel_router.get("/", response_model=PaginatedHostels)
-async def get_all_hostels(
+@hostel_router.get("/", response_model=List[HostelRead])
+async def get_public_hostels(
     hostel_service: HostelService = Depends(get_hostel_service)
 ):
-    hostels = await hostel_service.get_all_hostels()
-    return hostels
+    hostels = await hostel_service.get_all_hostels(status=HostelStatus.APPROVED)
+    return hostels["hostels"]
 
 
 @hostel_router.get("/{hostel_id}", response_model=HostelRead)
