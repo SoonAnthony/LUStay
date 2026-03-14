@@ -190,10 +190,12 @@ async def admin_delete_hostel(
     if not hostel:
         raise HTTPException(status_code=404, detail="Hostel not found")
 
-    await hostel_service.delete_hostel(hostel_id)
+    # Soft delete instead of hard delete
+    hostel.is_deleted = True
     await hostel_service.session.commit()
+    await hostel_service.session.refresh(hostel)
 
-    return {"success": True, "message": "Hostel deleted by admin"}
+    return {"success": True, "message": "Hostel marked as deleted by admin"}
 
 #routes for amenities
 amenity_router = APIRouter(prefix="/amenities", tags=["Amenities"])
