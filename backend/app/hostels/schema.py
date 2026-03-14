@@ -43,7 +43,7 @@ class HostelBase(BaseModel):
     status: HostelStatus = HostelStatus.PENDING
 
 class HostelCreate(HostelBase):
-    amenity_ids: Optional[List[UUID]] = []
+    amenity_ids: Optional[List[UUID]] = None
 
 class HostelUpdate(BaseModel):
     name: Optional[str] = None
