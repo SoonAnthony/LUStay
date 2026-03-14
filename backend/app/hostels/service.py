@@ -107,39 +107,42 @@ class HostelService:
     
 
     async def delete_hostel(self, hostel_id: UUID) -> bool:
-
         hostel = await self.get_hostel(hostel_id)
-
         if not hostel:
             return False
 
         previous_block = await self._get_last_block(hostel_id)
         previous_hash = previous_block.hash if previous_block else None
 
+        # Log deletion in blockchain
         block = HostelBlock(
             hostel_id=hostel.id,
             data="Hostel deleted",
             previous_hash=previous_hash,
             hash=self.generate_hash("Hostel deleted", previous_hash)
         )
-
         self.session.add(block)
-        await self.session.delete(hostel)
+
+        # Soft delete
+        hostel.is_deleted = True
+        self.session.add(hostel)
+        await self.session.flush()
 
         return True
 
-    async def get_hostel(self, hostel_id: UUID) -> Optional[Hostel]:
 
-        result = await self.session.execute(
-            select(Hostel)
-            .where(Hostel.id == hostel_id)
-            .options(
-                selectinload(Hostel.amenities),
-                selectinload(Hostel.images),
-                selectinload(Hostel.blocks),
-            )
+    async def get_hostel(self, hostel_id: UUID, include_deleted: bool = False) -> Optional[Hostel]:
+        query = select(Hostel).where(Hostel.id == hostel_id)
+        if not include_deleted:
+            query = query.where(Hostel.is_deleted == False)  # <-- filter soft-deleted
+
+        query = query.options(
+            selectinload(Hostel.amenities),
+            selectinload(Hostel.images),
+            selectinload(Hostel.blocks),
         )
 
+        result = await self.session.execute(query)
         return result.scalar_one_or_none()
     
     async def get_all_hostels(
@@ -147,34 +150,24 @@ class HostelService:
         limit: int = 50,
         offset: int = 0,
         status: Optional[HostelStatus] = None,
+        include_deleted: bool = False
     ) -> PaginatedHostels:
-        """Fetch all hostels with optional status filter and pagination."""
-
-        # Base query with eager loading
-        base_query = (
-            select(Hostel)
-            .options(
-                selectinload(Hostel.amenities),
-                selectinload(Hostel.images),
-                selectinload(Hostel.blocks),
-            )
+        base_query = select(Hostel).options(
+            selectinload(Hostel.amenities),
+            selectinload(Hostel.images),
+            selectinload(Hostel.blocks)
         )
 
         if status:
             base_query = base_query.where(Hostel.status == status)
 
-        # Data query with pagination
-        data_query = (
-            base_query
-            .order_by(desc(Hostel.created_at))
-            .offset(offset)
-            .limit(limit)
-        )
+        if not include_deleted:
+            base_query = base_query.where(Hostel.is_deleted == False)  # <-- filter soft-deleted
 
+        data_query = base_query.order_by(desc(Hostel.created_at)).offset(offset).limit(limit)
         result = await self.session.execute(data_query)
         hostels = result.scalars().all()
 
-        # Count query
         count_query = select(func.count()).select_from(base_query.subquery())
         total_result = await self.session.execute(count_query)
         total = total_result.scalar_one()
