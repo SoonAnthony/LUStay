@@ -6,7 +6,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.db.engine import get_session
 from app.hostels.service import HostelService, AmenityService
-from app.hostels.schema import HostelCreate, HostelUpdate, HostelRead, PaginatedHostels, AmenityCreate, AmenityRead
+from app.hostels.schema import HostelCreate, HostelUpdate, HostelRead, PaginatedHostels, AmenityCreate, AmenityRead, HostelCreateResponse
 from .models import Hostel, HostelStatus
 from app.user.models import User, UserRole
 from app.user.dependencies import get_current_active_user, get_current_admin
@@ -59,7 +59,7 @@ async def get_hostel(
 # ============================================================
 # LANDLORD / ADMIN ROUTES
 # ============================================================
-@hostel_router.post("/", response_model=HostelRead, status_code=201)
+@hostel_router.post("/", response_model=HostelCreateResponse, status_code=201)
 async def create_hostel(
     payload: HostelCreate,
     hostel_service: HostelService = Depends(get_hostel_service),
@@ -73,41 +73,26 @@ async def create_hostel(
         )
 
     # Create hostel
-    hostel = await hostel_service.create_hostel(
-        data=payload,
-        owner_id=current_user.id
-    )
-
-    await hostel_service.session.commit()
-    await hostel_service.session.refresh(hostel)
-
-    return hostel
-
-
-@hostel_router.patch("/{hostel_id}", response_model=HostelRead)
-async def update_hostel(
-    hostel_id: UUID,
-    payload: HostelUpdate,
-    hostel_service: HostelService = Depends(get_hostel_service),
-    current_user: User = Depends(get_current_active_user)
-):
-    hostel = await hostel_service.get_hostel(hostel_id)
-
-    if not hostel:
-        raise HTTPException(status_code=404, detail="Hostel not found")
-
-    if current_user.role != UserRole.ADMIN and hostel.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=403,
-            detail="Not authorized to update this hostel"
+    try:
+        hostel = await hostel_service.create_hostel(
+            data=payload,
+            owner_id=current_user.id
         )
 
-    hostel = await hostel_service.update_hostel(hostel_id, **payload.dict(exclude_unset=True))
-    await hostel_service.session.commit()
-    await hostel_service.session.refresh(hostel)
+        # Commit and refresh
+        await hostel_service.session.commit()
+        await hostel_service.session.refresh(hostel)
+
+    except ValueError as e:
+        # Raised if an invalid amenity ID is provided
+        await hostel_service.session.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        # Catch any other DB errors
+        await hostel_service.session.rollback()
+        raise HTTPException(status_code=500, detail="Database error")
 
     return hostel
-
 
 @hostel_router.delete("/{hostel_id}")
 async def delete_hostel(
