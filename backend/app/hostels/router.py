@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from typing import List, Optional
 from uuid import UUID
 
@@ -94,6 +94,40 @@ async def create_hostel(
 
     return hostel
 
+
+@hostel_router.patch("/{hostel_id}", response_model=HostelRead)
+async def update_hostel(
+    hostel_id: UUID,
+    payload: HostelUpdate = Body(...),
+    hostel_service: HostelService = Depends(get_hostel_service),
+    current_user: User = Depends(get_current_active_user)
+):
+    hostel = await hostel_service.get_hostel(hostel_id)
+
+    if not hostel:
+        raise HTTPException(status_code=404, detail="Hostel not found")
+
+    # Only admins or the hostel owner can update
+    if current_user.role != UserRole.ADMIN and hostel.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="Not authorized to update this hostel"
+        )
+
+    # Convert payload to dict and remove unset fields (for partial update)
+    updates = payload.model_dump(exclude_unset=True)
+
+    # Admins can update everything including status; landlords cannot update status
+    if current_user.role != UserRole.ADMIN and "status" in updates:
+        updates.pop("status")
+
+    updated_hostel = await hostel_service.update_hostel(hostel_id, **updates)
+    await hostel_service.session.commit()
+    await hostel_service.session.refresh(updated_hostel)
+
+    return updated_hostel
+
+
 @hostel_router.delete("/{hostel_id}")
 async def delete_hostel(
     hostel_id: UUID,
@@ -133,6 +167,24 @@ async def admin_get_all_hostels(
         offset=offset,
         status=status
     )
+
+@admin_hostel_router.patch("/{hostel_id}", response_model=HostelRead)
+async def admin_update_hostel(
+    hostel_id: UUID,
+    payload: HostelUpdate = Body(...),
+    hostel_service: HostelService = Depends(get_hostel_service),
+    _: User = Depends(get_current_admin)
+):
+    updates = payload.model_dump(exclude_unset=True)
+    updated_hostel = await hostel_service.update_hostel(hostel_id, **updates)
+    if not updated_hostel:
+        raise HTTPException(status_code=404, detail="Hostel not found")
+
+    await hostel_service.session.commit()
+    await hostel_service.session.refresh(updated_hostel)
+
+    return updated_hostel
+
 
 
 @admin_hostel_router.delete("/{hostel_id}")
