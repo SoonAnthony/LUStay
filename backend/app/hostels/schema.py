@@ -57,6 +57,18 @@ class HostelUpdate(BaseModel):
     class Config:
         from_attributes = True
 
+class HostelCreateResponse(BaseModel):
+    id: UUID
+    name: str
+    description: str
+    location: str
+    latitude: float
+    longitude: float
+    status: str
+    owner_id: UUID
+    created_at: datetime
+    updated_at: datetime
+
 class HostelRead(HostelBase):
     id: UUID
     owner_id: UUID
