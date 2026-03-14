@@ -30,9 +30,24 @@ class HostelService:
         self.session.add(hostel)
         await self.session.flush()
 
-        for amenity_id in getattr(data, "amenity_ids", []) or []:
-            link = HostelAmenity(hostel_id=hostel.id, amenity_id=amenity_id)
-            self.session.add(link)
+        amenity_ids = getattr(data, "amenity_ids", []) or []
+
+        if amenity_ids:
+            result = await self.session.execute(
+                select(Amenity.id).where(Amenity.id.in_(amenity_ids))
+            )
+            valid_ids = set(result.scalars().all())
+
+            for amenity_id in amenity_ids:
+                if amenity_id not in valid_ids:
+                    raise ValueError(f"Amenity {amenity_id} does not exist")
+
+                link = HostelAmenity(
+                    hostel_id=hostel.id,
+                    amenity_id=amenity_id
+                )
+                self.session.add(link)
+
 
         initial_block = HostelBlock(
             hostel_id=hostel.id,
