@@ -1,4 +1,5 @@
 from typing import List, Optional
+from unittest import result
 from uuid import UUID
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,7 +7,7 @@ from app.hostels.models import Amenity, Hostel, HostelAmenity, HostelImage, Host
 from app.hostels.schema import AmenityCreate, HostelImageCreate, HostelRead, HostelStatus, PaginatedHostels
 import hashlib
 from sqlalchemy import func, desc
-
+from sqlalchemy.orm import selectinload
 
 class HostelService:
     def __init__(self, session: AsyncSession):
@@ -61,23 +62,22 @@ class HostelService:
         return hostel
 
     async def update_hostel(self, hostel_id: UUID, **updates) -> Optional[Hostel]:
-
+        # Fetch the hostel first
         hostel = await self.get_hostel(hostel_id)
-
         if not hostel:
             return None
 
         changed_fields = []
 
+        # Apply updates and track changed fields
         for field, value in updates.items():
             if hasattr(hostel, field) and getattr(hostel, field) != value:
                 setattr(hostel, field, value)
                 changed_fields.append(f"{field}={value}")
 
+        # If any fields changed, create a block
         if changed_fields:
-
             data = "; ".join(changed_fields)
-
             previous_block = await self._get_last_block(hostel_id)
             previous_hash = previous_block.hash if previous_block else None
 
@@ -87,10 +87,24 @@ class HostelService:
                 previous_hash=previous_hash,
                 hash=self.generate_hash(data, previous_hash)
             )
-
             self.session.add(block)
 
-        return hostel
+        # Flush updates to DB
+        await self.session.flush()
+
+        # ✅ Explicitly reload hostel with relationships to avoid MissingGreenlet
+        result = await self.session.execute(
+            select(Hostel)
+            .where(Hostel.id == hostel_id)
+            .options(
+                selectinload(Hostel.amenities),
+                selectinload(Hostel.images),
+                selectinload(Hostel.blocks)
+            )
+        )
+        hostel_with_rels = result.scalar_one_or_none()
+        return hostel_with_rels
+    
 
     async def delete_hostel(self, hostel_id: UUID) -> bool:
 
@@ -117,7 +131,13 @@ class HostelService:
     async def get_hostel(self, hostel_id: UUID) -> Optional[Hostel]:
 
         result = await self.session.execute(
-            select(Hostel).where(Hostel.id == hostel_id)
+            select(Hostel)
+            .where(Hostel.id == hostel_id)
+            .options(
+                selectinload(Hostel.amenities),
+                selectinload(Hostel.images),
+                selectinload(Hostel.blocks),
+            )
         )
 
         return result.scalar_one_or_none()
@@ -126,11 +146,20 @@ class HostelService:
         self,
         limit: int = 50,
         offset: int = 0,
-        status: Optional[HostelStatus] = None, 
-    ) -> dict:
+        status: Optional[HostelStatus] = None,
+    ) -> PaginatedHostels:
         """Fetch all hostels with optional status filter and pagination."""
-        # Base query
-        base_query = select(Hostel)
+
+        # Base query with eager loading
+        base_query = (
+            select(Hostel)
+            .options(
+                selectinload(Hostel.amenities),
+                selectinload(Hostel.images),
+                selectinload(Hostel.blocks),
+            )
+        )
+
         if status:
             base_query = base_query.where(Hostel.status == status)
 
@@ -141,6 +170,7 @@ class HostelService:
             .offset(offset)
             .limit(limit)
         )
+
         result = await self.session.execute(data_query)
         hostels = result.scalars().all()
 
@@ -150,12 +180,12 @@ class HostelService:
         total = total_result.scalar_one()
 
         return PaginatedHostels(
-            total= total,
+            total=total,
             limit=limit,
             offset=offset,
             hostels=[HostelRead.model_validate(h) for h in hostels],
         )
-
+    
     async def get_blockchain_history(self, hostel_id: UUID) -> List[dict]:
 
         result = await self.session.execute(
