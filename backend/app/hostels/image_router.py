@@ -44,11 +44,7 @@ async def get_services(session: AsyncSession = Depends(get_session)):
 # ============================================================
 # Upload Images
 # ============================================================
-@image_router.post(
-    "/{hostel_id}/images",
-    response_model=List[HostelImageRead],
-    status_code=201
-)
+@image_router.post("/{hostel_id}/images", response_model=List[HostelImageRead], status_code=201)
 async def upload_hostel_images(
     hostel_id: UUID,
     files: List[UploadFile] = File(...),
