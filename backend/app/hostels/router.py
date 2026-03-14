@@ -5,22 +5,26 @@ from uuid import UUID
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.db.engine import get_session
-from app.hostels.service import HostelService
-from app.hostels.schema import HostelCreate, HostelUpdate, HostelRead, PaginatedHostels
+from app.hostels.service import HostelService, AmenityService
+from app.hostels.schema import HostelCreate, HostelUpdate, HostelRead, PaginatedHostels, AmenityCreate, AmenityRead
 from .models import Hostel, HostelStatus
 from app.user.models import User, UserRole
 from app.user.dependencies import get_current_active_user, get_current_admin
 
 
 # -------------------------------------------------
-# Dependency to provide a HostelService instance
+# Dependency to provide a HostelService instance and AmenityService instance
 # -------------------------------------------------
 async def get_hostel_service(
     session: AsyncSession = Depends(get_session)
 ) -> HostelService:
     return HostelService(session)
 
-
+async def get_amenity_service(
+    session: AsyncSession = Depends(get_session)
+) -> AmenityService:
+    hostel_service = HostelService(session)
+    return AmenityService(session, hostel_service)
 # -------------------------------------------------
 # Routers
 # -------------------------------------------------
@@ -70,7 +74,7 @@ async def create_hostel(
 
     # Create hostel
     hostel = await hostel_service.create_hostel(
-        payload=payload,
+        data=payload,
         owner_id=current_user.id
     )
 
@@ -161,3 +165,83 @@ async def admin_delete_hostel(
     await hostel_service.session.commit()
 
     return {"success": True, "message": "Hostel deleted by admin"}
+
+#routes for amenities
+amenity_router = APIRouter(prefix="/amenities", tags=["Amenities"])
+
+#route to create amenity
+@amenity_router.post("/", response_model=AmenityRead, status_code=201)
+async def create_amenity(
+    payload: AmenityCreate,
+    amenity_service: AmenityService = Depends(get_amenity_service),
+    current_user: User = Depends(get_current_active_user)
+):
+
+    if current_user.role not in [UserRole.ADMIN, UserRole.LANDLORD]:
+        raise HTTPException(
+            status_code=403,
+            detail="Only landlords or admins can create amenities"
+        )
+
+    amenity = await amenity_service.create_amenity(payload)
+
+    await amenity_service.session.commit()
+    await amenity_service.session.refresh(amenity)
+
+    return amenity
+
+#route to list amenities
+@amenity_router.get("/", response_model=List[AmenityRead])
+async def list_amenities(
+    amenity_service: AmenityService = Depends(get_amenity_service)
+):
+    amenities = await amenity_service.list_amenities()
+    return amenities
+
+#route to add amenity to hostel
+@amenity_router.post("/{hostel_id}/{amenity_id}")
+async def add_amenity_to_hostel(
+    hostel_id: UUID,
+    amenity_id: UUID,
+    amenity_service: AmenityService = Depends(get_amenity_service),
+    current_user: User = Depends(get_current_active_user)
+):
+
+    if current_user.role not in [UserRole.ADMIN, UserRole.LANDLORD]:
+        raise HTTPException(
+            status_code=403,
+            detail="Only landlords or admins can modify hostel amenities"
+        )
+
+    success = await amenity_service.add_amenity_to_hostel(hostel_id, amenity_id)
+
+    if not success:
+        raise HTTPException(status_code=404, detail="Hostel not found")
+
+    await amenity_service.session.commit()
+
+    return {"message": "Amenity added to hostel"}
+
+#route to remove amenity from hostel
+@amenity_router.delete("/{hostel_id}/{amenity_id}")
+async def remove_amenity_from_hostel(
+    hostel_id: UUID,
+    amenity_id: UUID,
+    amenity_service: AmenityService = Depends(get_amenity_service),
+    current_user: User = Depends(get_current_active_user)
+):
+
+    if current_user.role not in [UserRole.ADMIN, UserRole.LANDLORD]:
+        raise HTTPException(
+            status_code=403,
+            detail="Only landlords or admins can modify hostel amenities"
+        )
+
+    success = await amenity_service.remove_amenity_from_hostel(hostel_id, amenity_id)
+
+    if not success:
+        raise HTTPException(status_code=404, detail="Amenity not linked")
+
+    await amenity_service.session.commit()
+
+    return {"message": "Amenity removed from hostel"}
