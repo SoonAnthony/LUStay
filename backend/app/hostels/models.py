@@ -95,6 +95,7 @@ class Hostel(SQLModel, table=True):
             nullable=False
         )
     )
+    is_deleted: bool = Field(default=False)
 
     # -----------------------------
     # Relationships
