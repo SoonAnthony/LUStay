@@ -5,6 +5,7 @@ from sqlalchemy import text
 from app.user.router import user_router, admin_router, landlord_router, admin_landlord_router
 from app.hostels.router import hostel_router, admin_hostel_router, amenity_router
 from app.hostels.image_router import image_router
+from app.core.cloudinary import cloudinary
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
