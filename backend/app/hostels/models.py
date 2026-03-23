@@ -1,7 +1,6 @@
 import uuid
 from datetime import datetime
 from typing import Optional, List
-from enum import Enum
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column, Enum as SQLEnum, DateTime, func
 from sqlalchemy.dialects.postgresql import UUID
