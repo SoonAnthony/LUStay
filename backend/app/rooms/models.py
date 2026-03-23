@@ -5,7 +5,7 @@ from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import UniqueConstraint, Column
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID, ENUM as PGEnum
 import enum
-from app.hostels.models import Hostel
+from sqlalchemy import ForeignKey
 
 class RoomStatus(str, enum.Enum):
     AVAILABLE = "AVAILABLE"
@@ -28,9 +28,9 @@ class Room(SQLModel, table=True):
     hostel_id: uuid.UUID = Field(
         sa_column=Column(
             PG_UUID(as_uuid=True),
+            ForeignKey("hostels.id"),
             nullable=False
-        ),
-        foreign_key="hostels.id"
+        )
     )
 
     room_number: str
@@ -68,7 +68,7 @@ class RoomImage(SQLModel, table=True):
     )
 
     room_id: uuid.UUID = Field(
-        foreign_key="rooms.id",
+        ForeignKey("rooms.id"),
         nullable=False
     )
 
