@@ -6,6 +6,10 @@ from sqlalchemy import UniqueConstraint, Column
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID, ENUM as PGEnum
 import enum
 from sqlalchemy import ForeignKey
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.hostels.models import Hostel
 
 class RoomStatus(str, enum.Enum):
     AVAILABLE = "AVAILABLE"
