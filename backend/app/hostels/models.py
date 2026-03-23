@@ -6,6 +6,7 @@ from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column, Enum as SQLEnum, DateTime, func
 from sqlalchemy.dialects.postgresql import UUID
 from app.user.models import User
+import enum
 
 
 
@@ -42,7 +43,7 @@ class Amenity(SQLModel, table=True):
     )
 
 
-class HostelStatus(str, Enum):
+class HostelStatus(str, enum.Enum):
     PENDING = "PENDING"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
@@ -67,7 +68,7 @@ class Hostel(SQLModel, table=True):
 
     status: HostelStatus = Field(
         sa_column=Column(
-            SQLEnum(HostelStatus, name="hostel_status"),
+            SQLEnum(HostelStatus, name="hostel_status", native_enum=True, create_type=True),
             nullable=False,
             default=HostelStatus.PENDING
         )
