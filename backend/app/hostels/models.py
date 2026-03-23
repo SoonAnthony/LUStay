@@ -108,6 +108,10 @@ class Hostel(SQLModel, table=True):
         back_populates="hostels",
         link_model=HostelAmenity
     )
+    rooms: List["Room"] = Relationship(
+        back_populates="hostel",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
 
 
 class HostelImage(SQLModel, table=True):
