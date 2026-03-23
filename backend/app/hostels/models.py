@@ -7,6 +7,11 @@ from sqlalchemy.dialects.postgresql import UUID
 from app.user.models import User
 import enum
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.rooms.models import Room
+
 
 
 
