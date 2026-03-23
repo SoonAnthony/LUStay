@@ -50,7 +50,7 @@ class User(SQLModel, table=True):
 
     role: UserRole = Field(
         sa_column=Column(
-            PGEnum(UserRole, name="userrole"),
+            PGEnum(UserRole, name="userrole", native_enum=True, create_type=True),
             server_default="STUDENT",
             nullable=False
         ),
