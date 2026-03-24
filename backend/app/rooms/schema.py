@@ -52,9 +52,8 @@ class RoomPublicRead(RoomPublicBase):
         from_attributes = True
 
 
-# ----------------------------
 # Landlord Schemas
-# ----------------------------
+
 class RoomBookingRead(SQLModel):
     student_id: uuid.UUID
     is_shared: bool
