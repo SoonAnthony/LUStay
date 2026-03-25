@@ -5,6 +5,7 @@ from sqlalchemy import text
 from app.user.router import user_router, admin_router, landlord_router, admin_landlord_router
 from app.hostels.router import hostel_router, admin_hostel_router, amenity_router
 from app.hostels.image_router import image_router
+from app.rooms.router import room_router, admin_room_router
 from app.core.cloudinary import cloudinary
 
 @asynccontextmanager
@@ -55,6 +56,13 @@ api_v1_router.include_router(
 api_v1_router.include_router(
     amenity_router
 )
+api_v1_router.include_router(
+    room_router
+)
+api_v1_router.include_router(
+    admin_room_router
+)
+
 
 # ✅ Register version router in app
 app.include_router(api_v1_router)
