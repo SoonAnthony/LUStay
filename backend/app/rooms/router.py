@@ -20,8 +20,8 @@ async def get_room_service(session: AsyncSession = Depends(get_session)) -> Room
 
 
 room_router = APIRouter(prefix="/rooms", tags=["Public Rooms"])
-landlord_router = APIRouter(prefix="/landlord/rooms", tags=["Landlord Rooms"])
-admin_router = APIRouter(prefix="/admin/rooms", tags=["Admin Rooms"])
+room_landlord_router = APIRouter(prefix="/landlord/rooms", tags=["Landlord Rooms"])
+room_admin_router = APIRouter(prefix="/admin/rooms", tags=["Admin Rooms"])
 
 
 def compute_status(room: Room) -> RoomStatus:
@@ -82,7 +82,7 @@ async def get_room_details(
     return map_room_to_public(room)
 
 
-@landlord_router.get("/", response_model=List[RoomAdminRead])
+@room_landlord_router.get("/", response_model=List[RoomAdminRead])
 async def list_my_rooms(
     room_service: RoomService = Depends(get_room_service),
     current_user: User = Depends(get_current_active_user)
@@ -93,7 +93,7 @@ async def list_my_rooms(
     my_rooms = [room for room in rooms if getattr(room, "owner_id", None) == current_user.id]
     return [map_room_to_admin(room) for room in my_rooms]
 
-@landlord_router.post("/", response_model=RoomAdminRead, status_code=status.HTTP_201_CREATED)
+@room_landlord_router.post("/", response_model=RoomAdminRead, status_code=status.HTTP_201_CREATED)
 async def create_room(
     payload: RoomCreate,
     room_service: RoomService = Depends(get_room_service),
@@ -115,7 +115,7 @@ async def create_room(
         raise HTTPException(status_code=500, detail="Database error")
     return map_room_to_admin(room)
 
-@landlord_router.patch("/{room_id}", response_model=RoomAdminRead)
+@room_landlord_router.patch("/{room_id}", response_model=RoomAdminRead)
 async def update_room(
     room_id: UUID,
     payload: RoomUpdate = Body(...),
@@ -135,7 +135,7 @@ async def update_room(
     await room_service.session.refresh(updated_room)
     return map_room_to_admin(updated_room)
 
-@landlord_router.delete("/{room_id}", status_code=status.HTTP_204_NO_CONTENT)
+@room_landlord_router.delete("/{room_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_room(
     room_id: UUID,
     room_service: RoomService = Depends(get_room_service),
@@ -150,7 +150,7 @@ async def delete_room(
     await room_service.session.commit()
     return None
 
-@landlord_router.post("/{room_id}/images", response_model=List[RoomImageRead])
+@room_landlord_router.post("/{room_id}/images", response_model=List[RoomImageRead])
 async def add_room_images_landlord(
     room_id: UUID,
     images: List[RoomImageCreate],
@@ -166,7 +166,7 @@ async def add_room_images_landlord(
     await room_service.session.commit()
     return [RoomImageRead(id=i.id, image_url=i.image_url, image_type=i.image_type) for i in created_images]
 
-@landlord_router.delete("/images/{image_id}", status_code=status.HTTP_204_NO_CONTENT)
+@room_landlord_router.delete("/images/{image_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_room_image_landlord(
     image_id: UUID,
     room_service: RoomService = Depends(get_room_service),
@@ -182,7 +182,7 @@ async def delete_room_image_landlord(
     return None
 
 
-@admin_router.get("/", response_model=List[RoomAdminRead])
+@room_admin_router.get("/", response_model=List[RoomAdminRead])
 async def list_all_rooms_admin(
     room_service: RoomService = Depends(get_room_service),
     _: User = Depends(get_current_admin)
@@ -190,7 +190,7 @@ async def list_all_rooms_admin(
     rooms = await room_service.get_rooms()
     return [map_room_to_admin(room) for room in rooms]
 
-@admin_router.post("/", response_model=RoomAdminRead, status_code=status.HTTP_201_CREATED)
+@room_admin_router.post("/", response_model=RoomAdminRead, status_code=status.HTTP_201_CREATED)
 async def create_room_admin(
     payload: RoomCreate,
     room_service: RoomService = Depends(get_room_service),
@@ -202,7 +202,7 @@ async def create_room_admin(
     await room_service.session.refresh(room)
     return map_room_to_admin(room)
 
-@admin_router.patch("/{room_id}", response_model=RoomAdminRead)
+@room_admin_router.patch("/{room_id}", response_model=RoomAdminRead)
 async def update_room_admin(
     room_id: UUID,
     payload: RoomUpdate = Body(...),
@@ -217,7 +217,7 @@ async def update_room_admin(
     await room_service.session.refresh(updated_room)
     return map_room_to_admin(updated_room)
 
-@admin_router.delete("/{room_id}", status_code=status.HTTP_204_NO_CONTENT)
+@room_admin_router.delete("/{room_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_room_admin(
     room_id: UUID,
     room_service: RoomService = Depends(get_room_service),
@@ -230,7 +230,7 @@ async def delete_room_admin(
     await room_service.session.commit()
     return None
 
-@admin_router.post("/{room_id}/images", response_model=List[RoomImageRead])
+@room_admin_router.post("/{room_id}/images", response_model=List[RoomImageRead])
 async def add_room_images_admin(
     room_id: UUID,
     images: List[RoomImageCreate],
@@ -241,7 +241,7 @@ async def add_room_images_admin(
     await room_service.session.commit()
     return [RoomImageRead(id=i.id, image_url=i.image_url, image_type=i.image_type) for i in created_images]
 
-@admin_router.delete("/images/{image_id}", status_code=status.HTTP_204_NO_CONTENT)
+@room_admin_router.delete("/images/{image_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_room_image_admin(
     image_id: UUID,
     room_service: RoomService = Depends(get_room_service),
