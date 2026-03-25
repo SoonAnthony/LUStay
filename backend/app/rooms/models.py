@@ -87,9 +87,8 @@ class RoomImage(SQLModel, table=True):
     )
 
     room_id: uuid.UUID = Field(
-        ForeignKey("rooms.id"),
-        nullable=False
-    )
+            sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("rooms.id"), nullable=False)
+        )
 
     image_url: str
     image_type: Optional[str] = Field(
