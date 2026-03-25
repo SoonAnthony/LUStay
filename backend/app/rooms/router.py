@@ -14,22 +14,16 @@ from app.rooms.models import Room, RoomStatus, RoomImage
 from app.user.models import User, UserRole
 from app.user.dependencies import get_current_active_user, get_current_admin
 
-# -------------------------------------------------
-# Dependencies
-# -------------------------------------------------
+
 async def get_room_service(session: AsyncSession = Depends(get_session)) -> RoomService:
     return RoomService(session)
 
-# -------------------------------------------------
-# Routers
-# -------------------------------------------------
+
 room_router = APIRouter(prefix="/rooms", tags=["Public Rooms"])
 landlord_router = APIRouter(prefix="/landlord/rooms", tags=["Landlord Rooms"])
 admin_router = APIRouter(prefix="/admin/rooms", tags=["Admin Rooms"])
 
-# ---------------------------
-# Helper: compute room status
-# ---------------------------
+
 def compute_status(room: Room) -> RoomStatus:
     if getattr(room, "is_under_maintenance", False):
         return RoomStatus.MAINTENANCE
@@ -65,9 +59,7 @@ def map_room_to_admin(room: Room) -> RoomAdminRead:
         hostel_id=room.hostel_id
     )
 
-# ============================================================
-# PUBLIC ROUTES
-# ============================================================
+
 @room_router.get("/", response_model=List[RoomPublicRead])
 async def list_available_rooms(
     capacity: Optional[int] = None,
@@ -89,9 +81,7 @@ async def get_room_details(
         raise HTTPException(status_code=404, detail="Room not found")
     return map_room_to_public(room)
 
-# ============================================================
-# LANDLORD ROUTES
-# ============================================================
+
 @landlord_router.get("/", response_model=List[RoomAdminRead])
 async def list_my_rooms(
     room_service: RoomService = Depends(get_room_service),
@@ -135,11 +125,11 @@ async def update_room(
     room = await room_service.get_room_by_id(room_id)
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
-    if current_user.role == UserRole.LANDLORD and room.owner_id != current_user.id:
+    if room.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Cannot update rooms you do not own")
     updates = payload.model_dump(exclude_unset=True)
-    if current_user.role == UserRole.LANDLORD and "status" in updates:
-        updates.pop("status")  # landlord cannot change status directly
+    if "status" in updates:
+        updates.pop("status")  # landlords cannot change status directly
     updated_room = await room_service.update_room(room_id, RoomUpdate(**updates))
     await room_service.session.commit()
     await room_service.session.refresh(updated_room)
@@ -154,18 +144,14 @@ async def delete_room(
     room = await room_service.get_room_by_id(room_id)
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
-    if current_user.role == UserRole.LANDLORD and room.owner_id != current_user.id:
+    if room.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Cannot delete rooms you do not own")
     await room_service.delete_room(room_id)
     await room_service.session.commit()
     return None
 
-# ============================================================
-# IMAGE ROUTES (landlord + admin)
-# ============================================================
 @landlord_router.post("/{room_id}/images", response_model=List[RoomImageRead])
-@admin_router.post("/{room_id}/images", response_model=List[RoomImageRead])
-async def add_room_images(
+async def add_room_images_landlord(
     room_id: UUID,
     images: List[RoomImageCreate],
     room_service: RoomService = Depends(get_room_service),
@@ -174,15 +160,14 @@ async def add_room_images(
     room = await room_service.get_room_by_id(room_id)
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
-    if current_user.role == UserRole.LANDLORD and room.owner_id != current_user.id:
+    if room.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Cannot add images to rooms you do not own")
     created_images = await room_service.add_room_images(room_id, images)
     await room_service.session.commit()
     return [RoomImageRead(id=i.id, image_url=i.image_url, image_type=i.image_type) for i in created_images]
 
 @landlord_router.delete("/images/{image_id}", status_code=status.HTTP_204_NO_CONTENT)
-@admin_router.delete("/images/{image_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_room_image(
+async def delete_room_image_landlord(
     image_id: UUID,
     room_service: RoomService = Depends(get_room_service),
     current_user: User = Depends(get_current_active_user)
@@ -190,19 +175,78 @@ async def delete_room_image(
     room_image = await room_service.session.get(RoomImage, image_id)
     if not room_image:
         raise HTTPException(status_code=404, detail="Image not found")
-    if current_user.role == UserRole.LANDLORD and room_image.room.owner_id != current_user.id:
+    if room_image.room.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Cannot delete images from rooms you do not own")
     await room_service.delete_room_image(image_id)
     await room_service.session.commit()
     return None
 
-# ============================================================
-# ADMIN-ONLY ROUTES (full access)
-# ============================================================
-@admin_router.get("/all", response_model=List[RoomAdminRead])
-async def list_all_rooms(
+
+@admin_router.get("/", response_model=List[RoomAdminRead])
+async def list_all_rooms_admin(
     room_service: RoomService = Depends(get_room_service),
     _: User = Depends(get_current_admin)
 ):
     rooms = await room_service.get_rooms()
     return [map_room_to_admin(room) for room in rooms]
+
+@admin_router.post("/", response_model=RoomAdminRead, status_code=status.HTTP_201_CREATED)
+async def create_room_admin(
+    payload: RoomCreate,
+    room_service: RoomService = Depends(get_room_service),
+    _: User = Depends(get_current_admin)
+):
+    room = await room_service.create_room(hostel_id=payload.hostel_id, data=payload)
+    room_service.session.add(room)
+    await room_service.session.commit()
+    await room_service.session.refresh(room)
+    return map_room_to_admin(room)
+
+@admin_router.patch("/{room_id}", response_model=RoomAdminRead)
+async def update_room_admin(
+    room_id: UUID,
+    payload: RoomUpdate = Body(...),
+    room_service: RoomService = Depends(get_room_service),
+    _: User = Depends(get_current_admin)
+):
+    room = await room_service.get_room_by_id(room_id)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    updated_room = await room_service.update_room(room_id, payload)
+    await room_service.session.commit()
+    await room_service.session.refresh(updated_room)
+    return map_room_to_admin(updated_room)
+
+@admin_router.delete("/{room_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_room_admin(
+    room_id: UUID,
+    room_service: RoomService = Depends(get_room_service),
+    _: User = Depends(get_current_admin)
+):
+    room = await room_service.get_room_by_id(room_id)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    await room_service.delete_room(room_id)
+    await room_service.session.commit()
+    return None
+
+@admin_router.post("/{room_id}/images", response_model=List[RoomImageRead])
+async def add_room_images_admin(
+    room_id: UUID,
+    images: List[RoomImageCreate],
+    room_service: RoomService = Depends(get_room_service),
+    _: User = Depends(get_current_admin)
+):
+    created_images = await room_service.add_room_images(room_id, images)
+    await room_service.session.commit()
+    return [RoomImageRead(id=i.id, image_url=i.image_url, image_type=i.image_type) for i in created_images]
+
+@admin_router.delete("/images/{image_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_room_image_admin(
+    image_id: UUID,
+    room_service: RoomService = Depends(get_room_service),
+    _: User = Depends(get_current_admin)
+):
+    await room_service.delete_room_image(image_id)
+    await room_service.session.commit()
+    return None
