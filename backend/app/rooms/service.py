@@ -23,6 +23,48 @@ class RoomService:
             return RoomStatus.PARTIALLY_OCCUPIED
         return RoomStatus.FULLY_OCCUPIED
 
+    async def increment_occupancy(self, room_id: UUID) -> Room:
+        room = await self.get_room_by_id(room_id)
+        if not room:
+            raise ValueError("Room not found")
+
+
+        if room.is_under_maintenance:
+            raise ValueError("Cannot occupy a room under maintenance")
+
+
+        if room.current_occupancy >= room.capacity:
+            raise ValueError("Room is already fully occupied")
+
+        room.current_occupancy += 1
+
+        room.status = self._compute_status(room)
+
+        self.session.add(room)
+        await self.session.flush()
+        await self.session.refresh(room)
+
+        return room
+
+
+    async def decrement_occupancy(self, room_id: UUID) -> Room:
+        room = await self.get_room_by_id(room_id)
+        if not room:
+            raise ValueError("Room not found")
+
+        
+        if room.current_occupancy <= 0:
+            raise ValueError("Room is already empty")
+
+        room.current_occupancy -= 1
+
+        room.status = self._compute_status(room)
+
+        self.session.add(room)
+        await self.session.flush()
+        await self.session.refresh(room)
+
+        return room
     
     async def create_room(self, hostel_id: UUID, data: RoomCreate) -> Room:
         if data.capacity not in [1, 2]:
