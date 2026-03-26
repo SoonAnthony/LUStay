@@ -7,8 +7,7 @@ from app.db.engine import get_session
 from app.rooms.service import RoomService
 from app.rooms.schema import (
     RoomCreate, RoomUpdate,
-    RoomPublicRead, RoomAdminRead,
-    RoomImageCreate, RoomImageRead
+    RoomPublicRead, RoomAdminRead, RoomImageRead
 )
 from app.rooms.models import Room, RoomStatus, RoomImage
 from app.user.models import User, UserRole
