@@ -1,9 +1,10 @@
 from typing import List, Optional
 from datetime import datetime
 from fastapi import UploadFile
-from sqlmodel import SQLModel, Field
 import enum
 import uuid
+from pydantic import BaseModel, ConfigDict
+from fastapi import File
 
 
 class RoomStatus(str, enum.Enum):
@@ -14,16 +15,11 @@ class RoomStatus(str, enum.Enum):
 
 
 
-class RoomImageBase(SQLModel):
-    images: List[UploadFile]
+class RoomImageBase(BaseModel):
     image_type: Optional[str] = None  # e.g., bed, bathroom, sink
 
-    class Config:
-        from_attributes = True
-
-
 class RoomImageCreate(RoomImageBase):
-    pass
+    images: List[UploadFile]
 
 
 class RoomImageUpdate(RoomImageBase):
@@ -33,37 +29,35 @@ class RoomImageUpdate(RoomImageBase):
 class RoomImageRead(RoomImageBase):
     id: uuid.UUID
 
+    model_config = ConfigDict(from_attributes=True)
 
-class RoomPublicBase(SQLModel):
+
+class RoomPublicBase(BaseModel):
     room_number: str
     capacity: int
     price_single: int
     price_double: Optional[int] = None
     status: RoomStatus
 
-    class Config:
-        from_attributes = True
 
 
 class RoomPublicRead(RoomPublicBase):
     id: uuid.UUID
     images: List[RoomImageRead] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Landlord Schemas
 
-class RoomBookingRead(SQLModel):
+class RoomBookingRead(BaseModel):
     student_id: uuid.UUID
     is_shared: bool
     price_paid: int
     status: str  # pending, confirmed, adjusted
     partner_deadline: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RoomLandlordRead(RoomPublicRead):
@@ -71,11 +65,10 @@ class RoomLandlordRead(RoomPublicRead):
     created_at: datetime
     updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
-class RoomCreate(SQLModel):
+class RoomCreate(BaseModel):
     room_number: str
     capacity: int
     price_single: int
@@ -83,11 +76,9 @@ class RoomCreate(SQLModel):
     status: Optional[RoomStatus] = RoomStatus.AVAILABLE
     images: Optional[List[RoomImageCreate]] = []
 
-    class Config:
-        from_attributes = True
 
 
-class RoomUpdate(SQLModel):
+class RoomUpdate(BaseModel):
     room_number: Optional[str] = None
     capacity: Optional[int] = None
     price_single: Optional[int] = None
@@ -95,13 +86,8 @@ class RoomUpdate(SQLModel):
     status: Optional[RoomStatus] = None
     images: Optional[List[RoomImageUpdate]] = None
 
-    class Config:
-        from_attributes = True
-
-
 
 class RoomAdminRead(RoomLandlordRead):
     hostel_id: uuid.UUID
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
