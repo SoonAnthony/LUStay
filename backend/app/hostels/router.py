@@ -129,21 +129,34 @@ async def delete_hostel(
     hostel_service: HostelService = Depends(get_hostel_service),
     current_user: User = Depends(get_current_active_user)
 ):
-    hostel = await hostel_service.get_hostel(hostel_id)
+    try:
+        hostel = await hostel_service.get_hostel(hostel_id)
 
-    if not hostel:
-        raise HTTPException(status_code=404, detail="Hostel not found")
+        if not hostel:
+            raise HTTPException(status_code=404, detail="Hostel not found")
 
-    if current_user.role != UserRole.ADMIN and hostel.owner_id != current_user.id:
-        raise HTTPException(
-            status_code=403,
-            detail="Not authorized to delete this hostel"
-        )
+        if current_user.role != UserRole.ADMIN and hostel.owner_id != current_user.id:
+            raise HTTPException(
+                status_code=403,
+                detail="Not authorized to delete this hostel"
+            )
 
-    await hostel_service.delete_hostel(hostel_id)
-    await hostel_service.session.commit()
+        success = await hostel_service.delete_hostel(hostel_id)
 
-    return {"success": True, "message": "Hostel deleted successfully"}
+        if not success:
+            raise HTTPException(status_code=400, detail="Delete failed")
+
+        await hostel_service.session.commit()
+
+        return {"success": True, "message": "Hostel deleted successfully"}
+
+    except HTTPException:
+        await hostel_service.session.rollback()
+        raise
+
+    except Exception as e:
+        await hostel_service.session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================
