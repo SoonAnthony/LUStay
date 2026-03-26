@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional, List
 from uuid import UUID
 from enum import Enum
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 # ================================
@@ -27,8 +27,7 @@ class AmenityCreate(AmenityBase):
 class AmenityRead(AmenityBase):
     id: UUID
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ================================
@@ -54,8 +53,7 @@ class HostelUpdate(BaseModel):
     status: Optional[HostelStatus] = None
     amenity_ids: Optional[List[UUID]] = None  # update amenities
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class HostelCreateResponse(BaseModel):
     id: UUID
@@ -69,8 +67,7 @@ class HostelCreateResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class HostelRead(HostelBase):
     id: UUID
@@ -79,8 +76,7 @@ class HostelRead(HostelBase):
     images: Optional[List["HostelImageRead"]] = []
     blocks: Optional[List["HostelBlockRead"]] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class PaginatedHostels(BaseModel):
     total: int
@@ -88,8 +84,7 @@ class PaginatedHostels(BaseModel):
     offset: int
     hostels: List[HostelRead]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 # ================================
 # Hostel Image Schemas
@@ -108,8 +103,7 @@ class HostelImageRead(HostelImageBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ================================
@@ -129,6 +123,5 @@ class HostelBlockRead(HostelBlockBase):
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
