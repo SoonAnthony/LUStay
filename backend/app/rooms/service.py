@@ -107,6 +107,7 @@ class RoomService:
                 image = RoomImage(
                     room_id=room.id,
                     image_url=result["secure_url"],
+                    public_id=result["public_id"],
                     image_type=img.get("image_type")
                 )
                 self.session.add(image)
@@ -224,6 +225,7 @@ class RoomService:
             image = RoomImage(
                 room_id=room_id,
                 image_url=result["secure_url"],
+                public_id=result["public_id"],
                 image_type=img.get("image_type")
             )
             self.session.add(image)
@@ -240,8 +242,7 @@ class RoomService:
             raise ValueError("Image not found")
         room = await self.get_room_by_id(image.room_id)
         self._check_ownership(room)
-        public_id = image.image_url.split("/")[-1].split(".")[0]  # naive approach
-        delete_image(public_id)
+        delete_image(image.public_id)
         await self.session.delete(image)
 
     async def set_maintenance(self, room_id: UUID, value: bool) -> Room:
