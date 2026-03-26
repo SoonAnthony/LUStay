@@ -7,6 +7,7 @@ from sqlmodel import select
 from sqlalchemy.orm import selectinload
 from app.rooms.models import Room, RoomImage, RoomStatus
 from app.rooms.schema import RoomCreate, RoomUpdate
+from app.core.cloudinary_services import upload_image, upload_images, delete_image
 
 class RoomService:
     def __init__(self, session: AsyncSession, current_user: dict):
@@ -102,10 +103,11 @@ class RoomService:
 
         if data.images:
             for img in data.images:
+                result = upload_image(img["file"], folder=f"rooms/{room.id}")
                 image = RoomImage(
                     room_id=room.id,
-                    image_url=img.image_url,
-                    image_type=img.image_type,
+                    image_url=result["secure_url"],
+                    image_type=img.get("image_type")
                 )
                 self.session.add(image)
 
@@ -216,10 +218,13 @@ class RoomService:
 
         created_images = []
         for img in images:
+            #upload image to cloudinary and get the URL
+            result = upload_image(img["file"], folder=f"rooms/{room.id}")
+            # Save Cloudinary URL to database
             image = RoomImage(
                 room_id=room_id,
-                image_url=img["image_url"],
-                image_type=img.get("image_type"),
+                image_url=result["secure_url"],
+                image_type=img.get("image_type")
             )
             self.session.add(image)
             created_images.append(image)
@@ -235,6 +240,8 @@ class RoomService:
             raise ValueError("Image not found")
         room = await self.get_room_by_id(image.room_id)
         self._check_ownership(room)
+        public_id = image.image_url.split("/")[-1].split(".")[0]  # naive approach
+        delete_image(public_id)
         await self.session.delete(image)
 
     async def set_maintenance(self, room_id: UUID, value: bool) -> Room:
