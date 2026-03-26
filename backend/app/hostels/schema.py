@@ -69,6 +69,9 @@ class HostelCreateResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    class Config:
+        from_attributes = True
+
 class HostelRead(HostelBase):
     id: UUID
     owner_id: UUID
