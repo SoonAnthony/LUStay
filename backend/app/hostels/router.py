@@ -116,6 +116,9 @@ async def update_hostel(
     updated_hostel = await hostel_service.update_hostel(hostel_id, **updates)
     if not updated_hostel:
         raise HTTPException(status_code=404, detail="Hostel not found")
+    
+    await hostel_service.session.commit()
+    await hostel_service.session.refresh(updated_hostel)
 
     return HostelRead.model_validate(updated_hostel)
 
