@@ -1,7 +1,7 @@
 from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
-
+from fastapi import UploadFile
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 from sqlalchemy.orm import selectinload
@@ -214,7 +214,8 @@ class RoomService:
     async def add_room_images(
         self,
         room_id: UUID,
-        images: List[dict]
+        images: List[UploadFile],  # now directly UploadFile
+        image_type: Optional[str] = None,  # optional type applied to all
     ) -> List[RoomImage]:
         room = await self.get_room_by_id(room_id)
         if not room:
@@ -230,7 +231,7 @@ class RoomService:
                 room_id=room_id,
                 image_url=result["secure_url"],
                 public_id=result["public_id"],
-                image_type=img.get("image_type")
+                image_type=image_type
             )
             self.session.add(image)
             created_images.append(image)
