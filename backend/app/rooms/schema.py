@@ -18,9 +18,6 @@ class RoomStatus(str, enum.Enum):
 class RoomImageBase(BaseModel):
     image_type: Optional[str] = None  # e.g., bed, bathroom, sink
 
-class RoomImageCreate(RoomImageBase):
-    images: List[UploadFile]
-
 
 class RoomImageUpdate(RoomImageBase):
     pass
@@ -85,6 +82,8 @@ class RoomUpdate(BaseModel):
     price_double: Optional[int] = None
     status: Optional[RoomStatus] = None
     images: Optional[List[RoomImageUpdate]] = None
+
+
 
 
 class RoomAdminRead(RoomLandlordRead):
