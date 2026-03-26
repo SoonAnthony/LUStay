@@ -235,11 +235,15 @@ async def delete_room_admin(
 @room_admin_router.post("/{room_id}/images", response_model=List[RoomImageRead])
 async def add_room_images_admin(
     room_id: UUID,
-    images: List[RoomImageCreate],
+    image_type: Optional[str] = Form(None),
+    images: List[UploadFile] = File(...),
     room_service: RoomService = Depends(get_room_service),
     _: User = Depends(get_current_admin)
 ):
-    created_images = await room_service.add_room_images(room_id, images)
+    created_images = await room_service.add_room_images(
+        room_id,
+        images=[{"file": img, "image_type": image_type} for img in images]
+    )
     await room_service.session.commit()
     return [RoomImageRead(id=i.id, image_url=i.image_url, image_type=i.image_type) for i in created_images]
 
