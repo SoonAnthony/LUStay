@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Body, File, UploadFile, Form
 from typing import List, Optional
 from uuid import UUID
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -153,7 +153,8 @@ async def delete_room(
 @room_landlord_router.post("/{room_id}/images", response_model=List[RoomImageRead])
 async def add_room_images_landlord(
     room_id: UUID,
-    images: List[RoomImageCreate],
+    image_type: Optional[str] = Form(None),
+    images: List[UploadFile] = File(...),
     room_service: RoomService = Depends(get_room_service),
     current_user: User = Depends(get_current_active_user)
 ):
@@ -162,7 +163,9 @@ async def add_room_images_landlord(
         raise HTTPException(status_code=404, detail="Room not found")
     if room.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Cannot add images to rooms you do not own")
-    created_images = await room_service.add_room_images(room_id, images)
+    created_images = await room_service.add_room_images(
+        room_id, images, image_type=image_type
+    )
     await room_service.session.commit()
     return [RoomImageRead(id=i.id, image_url=i.image_url, image_type=i.image_type) for i in created_images]
 
