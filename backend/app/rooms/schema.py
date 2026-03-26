@@ -1,5 +1,6 @@
 from typing import List, Optional
 from datetime import datetime
+from fastapi import UploadFile
 from sqlmodel import SQLModel, Field
 import enum
 import uuid
@@ -14,7 +15,7 @@ class RoomStatus(str, enum.Enum):
 
 
 class RoomImageBase(SQLModel):
-    image_url: str
+    images: List[UploadFile]
     image_type: Optional[str] = None  # e.g., bed, bathroom, sink
 
     class Config:
