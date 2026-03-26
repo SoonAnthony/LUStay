@@ -95,7 +95,10 @@ class RoomImage(SQLModel, table=True):
         default=None,
         description="Optional: type of image, e.g., bathroom, bed, sink"
     )
-
+    public_id: Optional[str] = Field(
+        default=None,
+        description="Public ID from Cloudinary for easier deletion"
+    )
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     # 🔗 Relationship
