@@ -68,7 +68,6 @@ async def create_hostel(
     hostel_service: HostelService = Depends(get_hostel_service),
     current_user: User = Depends(get_current_active_user)
 ):
-    # Authorization check
     if current_user.role not in [UserRole.LANDLORD, UserRole.ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -84,15 +83,15 @@ async def create_hostel(
         await hostel_service.session.commit()
         await hostel_service.session.refresh(hostel)
 
+        return hostel  
+
     except ValueError as e:
         await hostel_service.session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
-        await hostel_service.session.rollback()
-        raise HTTPException(status_code=500, detail="Database error")
 
-    # Convert to Pydantic
-    return HostelCreateResponse.model_validate(hostel)
+    except Exception as e:
+        await hostel_service.session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @hostel_router.patch("/{hostel_id}", response_model=HostelRead)
 async def update_hostel(
