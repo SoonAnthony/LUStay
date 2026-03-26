@@ -4,14 +4,14 @@ from datetime import datetime
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
-
+from sqlalchemy.orm import selectinload
 from app.rooms.models import Room, RoomImage, RoomStatus
 from app.rooms.schema import RoomCreate, RoomUpdate
 
-
 class RoomService:
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, current_user: dict):
         self.session = session
+        self.current_user = current_user
 
    
     def _compute_status(self, room: Room) -> RoomStatus:
@@ -66,6 +66,13 @@ class RoomService:
 
         return room
     
+    def _check_ownership(self, room: Room):
+        if self.current_user["role"] == "admin":
+            return  # admin bypass
+
+        if room.owner_id != self.current_user["id"]:
+            raise ValueError("Not authorized to perform this action")
+    
     async def create_room(self, hostel_id: UUID, data: RoomCreate) -> Room:
         if data.capacity not in [1, 2]:
             raise ValueError("Room capacity must be 1 or 2")
@@ -78,6 +85,7 @@ class RoomService:
 
         room = Room(
             hostel_id=hostel_id,
+            owner_id=self.current_user["id"],
             room_number=data.room_number,
             capacity=data.capacity,
             price_single=data.price_single,
@@ -106,7 +114,7 @@ class RoomService:
 
 
     async def get_room_by_id(self, room_id: UUID) -> Optional[Room]:
-        statement = select(Room).where(Room.id == room_id)
+        statement = select(Room).where(Room.id == room_id).options(selectinload(Room.images))
         result = await self.session.exec(statement)
         return result.first()
 
@@ -120,7 +128,7 @@ class RoomService:
         status: Optional[RoomStatus] = None,
     ) -> List[Room]:
 
-        statement = select(Room)
+        statement = select(Room).options(selectinload(Room.images))
 
         if hostel_id:
             statement = statement.where(Room.hostel_id == hostel_id)
@@ -141,7 +149,8 @@ class RoomService:
         room = await self.get_room_by_id(room_id)
         if not room:
             raise ValueError("Room not found")
-
+        
+        self._check_ownership(room)
         update_data = data.dict(exclude_unset=True)
         update_data.pop("status", None)  # prevent manual override
 
@@ -174,6 +183,7 @@ class RoomService:
         room = await self.get_room_by_id(room_id)
         if not room:
             raise ValueError("Room not found")
+        self._check_ownership(room)
         await self.session.delete(room)
 
    
@@ -202,6 +212,7 @@ class RoomService:
         room = await self.get_room_by_id(room_id)
         if not room:
             raise ValueError("Room not found")
+        self._check_ownership(room)
 
         created_images = []
         for img in images:
@@ -222,12 +233,15 @@ class RoomService:
         image = result.first()
         if not image:
             raise ValueError("Image not found")
+        room = await self.get_room_by_id(image.room_id)
+        self._check_ownership(room)
         await self.session.delete(image)
 
     async def set_maintenance(self, room_id: UUID, value: bool) -> Room:
         room = await self.get_room_by_id(room_id)
         if not room:
             raise ValueError("Room not found")
+        self._check_ownership(room)
         room.is_under_maintenance = value
         room.status = self._compute_status(room)
         self.session.add(room)
