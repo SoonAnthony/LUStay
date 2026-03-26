@@ -71,7 +71,6 @@ class RoomCreate(BaseModel):
     price_single: int
     price_double: Optional[int] = None
     status: Optional[RoomStatus] = RoomStatus.AVAILABLE
-    images: Optional[List[RoomImageCreate]] = []
 
 
 
