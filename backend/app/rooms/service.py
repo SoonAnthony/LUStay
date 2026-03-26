@@ -28,7 +28,7 @@ class RoomService:
         room = await self.get_room_by_id(room_id)
         if not room:
             raise ValueError("Room not found")
-
+        self._check_ownership(room)
 
         if room.is_under_maintenance:
             raise ValueError("Cannot occupy a room under maintenance")
@@ -52,7 +52,7 @@ class RoomService:
         room = await self.get_room_by_id(room_id)
         if not room:
             raise ValueError("Room not found")
-
+        self._check_ownership(room)
         
         if room.current_occupancy <= 0:
             raise ValueError("Room is already empty")
@@ -118,6 +118,8 @@ class RoomService:
 
     async def get_room_by_id(self, room_id: UUID) -> Optional[Room]:
         statement = select(Room).where(Room.id == room_id).options(selectinload(Room.images))
+        if self.current_user["role"] != "admin":
+            statement = statement.where(Room.owner_id == self.current_user["id"])
         result = await self.session.exec(statement)
         return result.first()
 
@@ -132,7 +134,8 @@ class RoomService:
     ) -> List[Room]:
 
         statement = select(Room).options(selectinload(Room.images))
-
+        if self.current_user["role"] != "admin":
+            statement = statement.where(Room.owner_id == self.current_user["id"])
         if hostel_id:
             statement = statement.where(Room.hostel_id == hostel_id)
         if capacity:
@@ -200,6 +203,7 @@ class RoomService:
         room = await self.get_room_by_id(room_id)
         if not room:
             raise ValueError("Room not found")
+        self._check_ownership(room)
         return {
             "price_single": room.price_single,
             "price_double": room.price_double,
