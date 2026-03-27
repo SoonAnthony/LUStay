@@ -23,11 +23,7 @@ async def upload_image(file, folder: str = "hostels") -> dict:
     )
 
 async def upload_images(files: List, folder: str = "hostels") -> List[dict]:
-    results = []
-    for file in files:
-        result = await upload_image(file, folder)
-        results.append(result)
-    return results
+    return await asyncio.gather(*(upload_image(f, folder) for f in files))
 
 def delete_image(public_id: str) -> dict:
     """
