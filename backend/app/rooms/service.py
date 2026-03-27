@@ -8,9 +8,10 @@ from sqlalchemy.orm import selectinload
 from app.rooms.models import Room, RoomImage, RoomStatus
 from app.rooms.schema import RoomCreate, RoomUpdate
 from app.core.cloudinary_services import upload_image, upload_images, delete_image
+from app.user.models import User, UserRole
 
 class RoomService:
-    def __init__(self, session: AsyncSession, current_user: dict):
+    def __init__(self, session: AsyncSession, current_user: Optional[User] = None):
         self.session = session
         self.current_user = current_user
 
@@ -68,10 +69,10 @@ class RoomService:
         return room
     
     def _check_ownership(self, room: Room):
-        if self.current_user["role"] == "admin":
+        if self.current_user and self.current_user.role == UserRole.ADMIN:
             return  # admin bypass
 
-        if room.owner_id != self.current_user["id"]:
+        if self.current_user and room.owner_id != self.current_user.id:
             raise ValueError("Not authorized to perform this action")
     
     async def create_room(self, hostel_id: UUID, data: RoomCreate) -> Room:
@@ -86,7 +87,7 @@ class RoomService:
 
         room = Room(
             hostel_id=hostel_id,
-            owner_id=self.current_user["id"],
+            owner_id=self.current_user.id,
             room_number=data.room_number,
             capacity=data.capacity,
             price_single=data.price_single,
@@ -118,8 +119,8 @@ class RoomService:
 
     async def get_room_by_id(self, room_id: UUID) -> Optional[Room]:
         statement = select(Room).where(Room.id == room_id).options(selectinload(Room.images))
-        if self.current_user["role"] != "admin":
-            statement = statement.where(Room.owner_id == self.current_user["id"])
+        if self.current_user and self.current_user.role != UserRole.ADMIN:
+            statement = statement.where(Room.owner_id == self.current_user.id)
         result = await self.session.exec(statement)
         return result.first()
 
@@ -134,8 +135,10 @@ class RoomService:
     ) -> List[Room]:
 
         statement = select(Room).options(selectinload(Room.images))
-        if self.current_user.role != "admin":
+        if self.current_user and self.current_user.role != UserRole.ADMIN:
             statement = statement.where(Room.owner_id == self.current_user.id)
+        if not self.current_user:
+            statement = statement.where(Room.is_under_maintenance == False) 
         if hostel_id:
             statement = statement.where(Room.hostel_id == hostel_id)
         if capacity:
