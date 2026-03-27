@@ -114,7 +114,7 @@ async def create_room(
         )
 
     try:
-        room = await room_service.create_room(hostel_id=current_user.hostel_id, data=payload)
+        room = await room_service.create_room(hostel_id=payload.hostel_id, data=payload)
         await room_service.session.commit()
         await room_service.session.refresh(room)
     except ValueError as e:
