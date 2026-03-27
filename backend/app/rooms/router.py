@@ -107,12 +107,6 @@ async def create_room(
     if current_user.role != UserRole.LANDLORD:
         raise HTTPException(status_code=403, detail="Only landlords can create rooms")
     
-    if not current_user.hostel_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Landlord has no hostel assigned"
-        )
-
     try:
         room = await room_service.create_room(hostel_id=payload.hostel_id, data=payload)
         await room_service.session.commit()
