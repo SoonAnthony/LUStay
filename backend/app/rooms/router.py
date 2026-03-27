@@ -1,3 +1,5 @@
+from unittest import result
+
 from fastapi import APIRouter, Depends, HTTPException, status, Body, File, UploadFile, Form
 from typing import List, Optional
 from uuid import UUID
@@ -12,6 +14,8 @@ from app.rooms.schema import (
 from app.rooms.models import Room, RoomStatus, RoomImage
 from app.user.models import User, UserRole
 from app.user.dependencies import get_current_active_user, get_current_admin
+from sqlalchemy.orm import selectinload
+from sqlmodel import select
 
 
 async def get_room_service(session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_active_user)) -> RoomService:
@@ -110,7 +114,9 @@ async def create_room(
     try:
         room = await room_service.create_room(hostel_id=payload.hostel_id, data=payload)
         await room_service.session.commit()
-        await room_service.session.refresh(room)
+        statement = select(Room).where(Room.id == room.id).options(selectinload(Room.images))
+        result = await room_service.session.exec(statement)
+        room = result.first()
     except ValueError as e:
         await room_service.session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
