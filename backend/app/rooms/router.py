@@ -16,6 +16,7 @@ from app.user.dependencies import get_current_active_user, get_current_admin
 
 async def get_room_service(session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_active_user)) -> RoomService:
     return RoomService(session, current_user)
+    
 
 async def get_admin_room_service(session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_admin)) -> RoomService:
     return RoomService(session, current_user)
@@ -107,8 +108,6 @@ async def create_room(
         raise HTTPException(status_code=403, detail="Only landlords can create rooms")
     try:
         room = await room_service.create_room(hostel_id=current_user.hostel_id, data=payload)
-        room.owner_id = current_user.id
-        room_service.session.add(room)
         await room_service.session.commit()
         await room_service.session.refresh(room)
     except ValueError as e:
@@ -202,7 +201,6 @@ async def create_room_admin(
     room_service: RoomService = Depends(get_admin_room_service)
 ):
     room = await room_service.create_room(hostel_id=payload.hostel_id, data=payload)
-    room_service.session.add(room)
     await room_service.session.commit()
     await room_service.session.refresh(room)
     return map_room_to_admin(room)
