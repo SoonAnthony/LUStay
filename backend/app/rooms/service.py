@@ -109,7 +109,7 @@ class RoomService:
                     room_id=room.id,
                     image_url=result["secure_url"],
                     public_id=result["public_id"],
-                    image_type=img.get("image_type")
+                    image_type=None
                 )
                 self.session.add(image)
         return room
