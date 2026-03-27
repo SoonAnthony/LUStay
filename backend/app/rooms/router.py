@@ -240,7 +240,8 @@ async def add_room_images_admin(
 ):
     created_images = await room_service.add_room_images(
         room_id,
-        images=[{"file": img, "image_type": image_type} for img in images]
+        images=images, 
+        image_type=image_type
     )
     await room_service.session.commit()
     return [RoomImageRead(id=i.id, image_url=i.image_url, image_type=i.image_type) for i in created_images]
