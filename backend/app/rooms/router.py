@@ -62,13 +62,13 @@ def map_room_to_admin(room: Room) -> RoomAdminRead:
         price_single=room.price_single,
         price_double=room.price_double,
         status=compute_status(room),
-        images=[RoomImageRead(id=img.id, image_url=img.image_url, image_type=img.image_type) for img in room.images],
-        bookings=[],  # populate if needed
+        images=[RoomImageRead(id=img.id, image_url=img.image_url, image_type=img.image_type)
+                for img in getattr(room, "images", [])],
+        bookings=[],  
         created_at=room.created_at,
         updated_at=room.updated_at,
         hostel_id=room.hostel_id
     )
-
 
 @room_router.get("/", response_model=List[RoomPublicRead])
 async def list_available_rooms(
