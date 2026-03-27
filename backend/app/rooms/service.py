@@ -111,9 +111,6 @@ class RoomService:
                     public_id=result["public_id"],
                     image_type=img.get("image_type")
                 )
-                self.session.add(image)
-
-        await self.session.refresh(room)
         return room
 
 
@@ -181,10 +178,6 @@ class RoomService:
             room.price_double = None
 
         room.status = self._compute_status(room)
-
-        self.session.add(room)
-        await self.session.flush()
-        await self.session.refresh(room)
         return room
 
     
@@ -236,10 +229,7 @@ class RoomService:
                 public_id=result["public_id"],
                 image_type=image_type
             )
-            self.session.add(image)
             created_images.append(image)
-
-        await self.session.flush()
         return created_images
 
     async def delete_room_image(self, image_id: UUID) -> None:
