@@ -7,6 +7,9 @@ from pydantic import BaseModel, ConfigDict
 from fastapi import File
 
 
+# ----------------------
+# Room Status Enum
+# ----------------------
 class RoomStatus(str, enum.Enum):
     AVAILABLE = "AVAILABLE"
     PARTIALLY_OCCUPIED = "PARTIALLY_OCCUPIED"
@@ -14,7 +17,9 @@ class RoomStatus(str, enum.Enum):
     MAINTENANCE = "MAINTENANCE"
 
 
-
+# ----------------------
+# Room Image Schemas
+# ----------------------
 class RoomImageBase(BaseModel):
     image_type: Optional[str] = None  # e.g., bed, bathroom, sink
 
@@ -24,11 +29,15 @@ class RoomImageUpdate(RoomImageBase):
 
 
 class RoomImageRead(RoomImageBase):
-    id: uuid.UUID
+    id: Optional[uuid.UUID] = None  
+    image_url: Optional[str] = None  
 
     model_config = ConfigDict(from_attributes=True)
 
 
+# ----------------------
+# Room Public Schemas
+# ----------------------
 class RoomPublicBase(BaseModel):
     room_number: str
     capacity: int
@@ -37,16 +46,16 @@ class RoomPublicBase(BaseModel):
     status: RoomStatus
 
 
-
 class RoomPublicRead(RoomPublicBase):
     id: uuid.UUID
-    images: List[RoomImageRead] = []
+    images: List[RoomImageRead] = [] 
 
     model_config = ConfigDict(from_attributes=True)
 
 
+# ----------------------
 # Landlord Schemas
-
+# ----------------------
 class RoomBookingRead(BaseModel):
     student_id: uuid.UUID
     is_shared: bool
@@ -58,13 +67,16 @@ class RoomBookingRead(BaseModel):
 
 
 class RoomLandlordRead(RoomPublicRead):
-    bookings: List[RoomBookingRead] = []
+    bookings: List[RoomBookingRead] = []  
     created_at: datetime
     updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
+# ----------------------
+# Room Create / Update Schemas
+# ----------------------
 class RoomCreate(BaseModel):
     hostel_id: uuid.UUID
     room_number: str
@@ -72,8 +84,7 @@ class RoomCreate(BaseModel):
     price_single: int
     price_double: Optional[int] = None
     status: Optional[RoomStatus] = RoomStatus.AVAILABLE
-    images: Optional[List[UploadFile]] = None
-
+    images: Optional[List[UploadFile]] = None  
 
 
 class RoomUpdate(BaseModel):
@@ -82,11 +93,12 @@ class RoomUpdate(BaseModel):
     price_single: Optional[int] = None
     price_double: Optional[int] = None
     status: Optional[RoomStatus] = None
-    images: Optional[List[RoomImageUpdate]] = None
+    images: Optional[List[RoomImageUpdate]] = None 
 
 
-
-
+# ----------------------
+# Admin Schema
+# ----------------------
 class RoomAdminRead(RoomLandlordRead):
     hostel_id: uuid.UUID
 
