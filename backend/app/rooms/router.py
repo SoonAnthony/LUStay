@@ -120,8 +120,9 @@ async def create_room(
     except ValueError as e:
         await room_service.session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
-    except Exception:
+    except Exception as e:
         await room_service.session.rollback()
+        print("CREATE ROOM ERROR:", e) 
         raise HTTPException(status_code=500, detail="Database error")
     return map_room_to_admin(room)
 
