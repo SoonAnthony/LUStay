@@ -20,6 +20,9 @@ async def get_room_service(session: AsyncSession = Depends(get_session), current
 async def get_admin_room_service(session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_admin)) -> RoomService:
     return RoomService(session, current_user)
 
+async def get_public_room_service(session: AsyncSession = Depends(get_session)) -> RoomService:
+    return RoomService(session, current_user=None)
+
 room_router = APIRouter(prefix="/rooms", tags=["Public Rooms"])
 room_landlord_router = APIRouter(prefix="/landlord/rooms", tags=["Landlord Rooms"])
 room_admin_router = APIRouter(prefix="/admin/rooms", tags=["Admin Rooms"])
@@ -66,7 +69,7 @@ async def list_available_rooms(
     capacity: Optional[int] = None,
     min_price: Optional[int] = None,
     max_price: Optional[int] = None,
-    room_service: RoomService = Depends(get_room_service)
+    room_service: RoomService = Depends(get_public_room_service)
 ):
     rooms = await room_service.get_rooms(capacity=capacity, min_price=min_price, max_price=max_price)
     available_rooms = [room for room in rooms if compute_status(room) == RoomStatus.AVAILABLE]
@@ -75,7 +78,7 @@ async def list_available_rooms(
 @room_router.get("/{room_id}", response_model=RoomPublicRead)
 async def get_room_details(
     room_id: UUID,
-    room_service: RoomService = Depends(get_room_service)
+    room_service: RoomService = Depends(get_public_room_service)
 ):
     room = await room_service.get_room_by_id(room_id)
     if not room:
