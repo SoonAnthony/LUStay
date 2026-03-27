@@ -66,6 +66,7 @@ class RoomLandlordRead(RoomPublicRead):
 
 
 class RoomCreate(BaseModel):
+    hostel_id: uuid.UUID
     room_number: str
     capacity: int
     price_single: int
