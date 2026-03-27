@@ -9,7 +9,7 @@ ssl_context = ssl.create_default_context()
 
 engine: AsyncEngine = create_async_engine(
     settings.DATABASE_URL,
-    echo=False,
+    echo=True,
     future = True,
     connect_args={"ssl": ssl_context},
     pool_pre_ping=True,          # ✅ VERY IMPORTANT
