@@ -181,8 +181,12 @@ async def delete_room_image_landlord(
     room_image = await room_service.session.get(RoomImage, image_id)
     if not room_image:
         raise HTTPException(status_code=404, detail="Image not found")
+
+    await room_service.session.refresh(room_image, attribute_names=["room"])
+
     if room_image.room.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Cannot delete images from rooms you do not own")
+
     await room_service.delete_room_image(image_id)
     await room_service.session.commit()
     return None
@@ -251,6 +255,12 @@ async def delete_room_image_admin(
     image_id: UUID,
     room_service: RoomService = Depends(get_admin_room_service),
 ):
+    room_image = await room_service.session.get(RoomImage, image_id)
+    if not room_image:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    await room_service.session.refresh(room_image, attribute_names=["room"])
+
     await room_service.delete_room_image(image_id)
     await room_service.session.commit()
     return None
