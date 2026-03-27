@@ -51,7 +51,11 @@ def map_room_to_public(room: Room) -> RoomPublicRead:
         price_single=room.price_single,
         price_double=room.price_double,
         status=compute_status(room),
-        images=[RoomImageRead(id=img.id, image_url=img.image_url, image_type=img.image_type) for img in room.images],
+        images=[RoomImageRead(
+                    id=img.id,
+                    image_url=img.image_url,
+                    image_type=img.image_type
+                ) for img in getattr(room, "images", [])],
     )
 
 def map_room_to_admin(room: Room) -> RoomAdminRead:
