@@ -9,6 +9,7 @@ from app.rooms.models import Room, RoomImage, RoomStatus
 from app.rooms.schema import RoomCreate, RoomUpdate
 from app.core.cloudinary_services import upload_image, upload_images, delete_image
 from app.user.models import User, UserRole
+from app.hostels.models import Hostel
 
 class RoomService:
     def __init__(self, session: AsyncSession, current_user: Optional[User] = None):
@@ -76,6 +77,20 @@ class RoomService:
             raise ValueError("Not authorized to perform this action")
     
     async def create_room(self, hostel_id: UUID, data: RoomCreate) -> Room:
+        if not self.current_user:
+            raise ValueError("Authentication required")
+        
+        statement = select(Hostel).where(Hostel.id == hostel_id)
+        result = await self.session.exec(statement)
+        hostel = result.first()
+
+        if not hostel:
+            raise ValueError("Hostel does not exist") 
+
+        if self.current_user.role != UserRole.ADMIN:
+            if hostel.owner_id != self.current_user.id:
+                raise ValueError("You do not own this hostel")
+
         if data.capacity not in [1, 2]:
             raise ValueError("Room capacity must be 1 or 2")
 
