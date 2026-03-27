@@ -49,7 +49,7 @@ class Room(SQLModel, table=True):
     status: RoomStatus = Field(
         default=RoomStatus.AVAILABLE,
         sa_column=Column(
-            PGEnum(RoomStatus, name="room_status_enum", native_enum=True, create_type=True),
+            PGEnum(RoomStatus, name="room_status_enum", native_enum=True, create_type=False),
             nullable=False
         ),
         description="System-controlled field. Do not set manually."
