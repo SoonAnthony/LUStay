@@ -134,7 +134,7 @@ class RoomService:
     ) -> List[Room]:
 
         statement = select(Room).options(selectinload(Room.images))
-        if self.current_user["role"] != "admin":
+        if self.current_user.role != "admin":
             statement = statement.where(Room.owner_id == self.current_user["id"])
         if hostel_id:
             statement = statement.where(Room.hostel_id == hostel_id)
