@@ -104,6 +104,8 @@ class RoomService:
 
         if data.images:
             for img in data.images:
+                if not hasattr(img, "file"):
+                    continue
                 result = await upload_image(img, folder=f"rooms/{room.id}")
                 image = RoomImage(
                     room_id=room.id,
