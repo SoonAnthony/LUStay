@@ -5,7 +5,7 @@ from typing import List, Optional
 from uuid import UUID
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from app.db.engine import get_session
+from app.db.engine import engine, get_session
 from app.rooms.service import RoomService
 from app.rooms.schema import (
     RoomCreate, RoomUpdate,
@@ -110,45 +110,45 @@ async def list_my_rooms(
 @room_landlord_router.post("/", response_model=RoomAdminRead, status_code=status.HTTP_201_CREATED)
 async def create_room(
     payload: RoomCreate,
-    room_service: RoomService = Depends(get_room_service),
     current_user: User = Depends(get_current_active_user)
 ):
     if current_user.role != UserRole.LANDLORD:
         raise HTTPException(status_code=403, detail="Only landlords can create rooms")
 
-    try:
-        room = await room_service.create_room(hostel_id=payload.hostel_id, data=payload)
-        room_service.session.add(room)
-        await room_service.session.flush() 
+    # --- FIXED: use async session context manager here ---
+    async with AsyncSession(engine) as session:
+        # create service instance with this session
+        room_service = RoomService(session=session, current_user=current_user)
 
-        if payload.images:
-            for upload_file in payload.images:
-                image_url, public_id = await room_service.upload_image(upload_file)
-                image_type = getattr(upload_file, "image_type", None) or "GENERAL"
-                await room_service.add_room_image(
-                    room_id=room.id,
-                    image_url=image_url,
-                    image_public_id=public_id,
-                    image_type=image_type
+        try:
+            # create room (this can safely call async upload_image)
+            room = await room_service.create_room(hostel_id=payload.hostel_id, data=payload)
+
+            # commit AFTER all async operations
+            await session.commit()
+
+            # refresh to ensure relationships (images) are loaded
+            await session.refresh(room)
+
+            response = map_room_to_admin(room)
+
+        except IntegrityError as e:
+            await session.rollback()
+            if 'unique_room_per_hostel' in str(e.orig):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Room number {payload.room_number} already exists in this hostel"
                 )
-        await room_service.session.commit()
-        response = map_room_to_admin(room)
+            raise HTTPException(status_code=500, detail="Database error")
 
-    except IntegrityError as e:
-        await room_service.session.rollback()
-        if 'unique_room_per_hostel' in str(e.orig):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Room number {payload.room_number} already exists in this hostel"
-            )
-        raise HTTPException(status_code=500, detail="Database error")
-    except ValueError as e:
-        await room_service.session.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        await room_service.session.rollback()
-        print("CREATE ROOM ERROR:", e)
-        raise HTTPException(status_code=500, detail="Database error")
+        except ValueError as e:
+            await session.rollback()
+            raise HTTPException(status_code=400, detail=str(e))
+
+        except Exception as e:
+            await session.rollback()
+            print("CREATE ROOM ERROR:", e)
+            raise HTTPException(status_code=500, detail="Database error")
 
     return response
 
@@ -205,7 +205,11 @@ async def create_room_admin(
 ):
     room = await room_service.create_room(hostel_id=payload.hostel_id, data=payload)
     await room_service.session.commit()
-    await room_service.session.refresh(room)
+
+    room = await room_service.get_room_by_id(room.id)
+    if not room:
+        raise HTTPException(status_code=500, detail="Failed to load created room")
+
     return map_room_to_admin(room)
 
 @room_admin_router.patch("/{room_id}", response_model=RoomAdminRead)
