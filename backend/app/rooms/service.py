@@ -104,13 +104,14 @@ class RoomService:
 
         if data.images:
             for img in data.images:
-                result = upload_image(img["file"], folder=f"rooms/{room.id}")
+                result = await upload_image(img, folder=f"rooms/{room.id}")
                 image = RoomImage(
                     room_id=room.id,
                     image_url=result["secure_url"],
                     public_id=result["public_id"],
                     image_type=img.get("image_type")
                 )
+                self.session.add(image)
         return room
 
 
@@ -221,7 +222,7 @@ class RoomService:
         created_images = []
         for img in images:
             #upload image to cloudinary and get the URL
-            result = upload_image(img["file"], folder=f"rooms/{room.id}")
+            result = await upload_image(img, folder=f"rooms/{room.id}")
             # Save Cloudinary URL to database
             image = RoomImage(
                 room_id=room_id,
@@ -229,6 +230,7 @@ class RoomService:
                 public_id=result["public_id"],
                 image_type=image_type
             )
+            self.session.add(image)
             created_images.append(image)
         return created_images
 
