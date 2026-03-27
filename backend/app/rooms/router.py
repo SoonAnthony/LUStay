@@ -14,6 +14,7 @@ from app.rooms.schema import (
 from app.rooms.models import Room, RoomStatus, RoomImage
 from app.user.models import User, UserRole
 from app.user.dependencies import get_current_active_user, get_current_admin
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from sqlmodel import select
 
@@ -110,56 +111,42 @@ async def create_room(
 ):
     if current_user.role != UserRole.LANDLORD:
         raise HTTPException(status_code=403, detail="Only landlords can create rooms")
-    
+
     try:
         room = await room_service.create_room(hostel_id=payload.hostel_id, data=payload)
+        room_service.session.add(room)
+        await room_service.session.flush() 
+
+        if payload.images:
+            for upload_file in payload.images:
+                image_url, public_id = await room_service.upload_image(upload_file)
+                image_type = getattr(upload_file, "image_type", None) or "GENERAL"
+                await room_service.add_room_image(
+                    room_id=room.id,
+                    image_url=image_url,
+                    image_public_id=public_id,
+                    image_type=image_type
+                )
         await room_service.session.commit()
-        statement = select(Room).where(Room.id == room.id).options(selectinload(Room.images))
-        result = await room_service.session.exec(statement)
-        room = result.first()
+        response = map_room_to_admin(room)
+
+    except IntegrityError as e:
+        await room_service.session.rollback()
+        if 'unique_room_per_hostel' in str(e.orig):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Room number {payload.room_number} already exists in this hostel"
+            )
+        raise HTTPException(status_code=500, detail="Database error")
     except ValueError as e:
         await room_service.session.rollback()
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         await room_service.session.rollback()
-        print("CREATE ROOM ERROR:", e) 
+        print("CREATE ROOM ERROR:", e)
         raise HTTPException(status_code=500, detail="Database error")
-    return map_room_to_admin(room)
 
-@room_landlord_router.patch("/{room_id}", response_model=RoomAdminRead)
-async def update_room(
-    room_id: UUID,
-    payload: RoomUpdate = Body(...),
-    room_service: RoomService = Depends(get_room_service),
-    current_user: User = Depends(get_current_active_user)
-):
-    room = await room_service.get_room_by_id(room_id)
-    if not room:
-        raise HTTPException(status_code=404, detail="Room not found")
-    if room.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Cannot update rooms you do not own")
-    updates = payload.model_dump(exclude_unset=True)
-    if "status" in updates:
-        updates.pop("status")  # landlords cannot change status directly
-    updated_room = await room_service.update_room(room_id, RoomUpdate(**updates))
-    await room_service.session.commit()
-    await room_service.session.refresh(updated_room)
-    return map_room_to_admin(updated_room)
-
-@room_landlord_router.delete("/{room_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_room(
-    room_id: UUID,
-    room_service: RoomService = Depends(get_room_service),
-    current_user: User = Depends(get_current_active_user)
-):
-    room = await room_service.get_room_by_id(room_id)
-    if not room:
-        raise HTTPException(status_code=404, detail="Room not found")
-    if room.owner_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Cannot delete rooms you do not own")
-    await room_service.delete_room(room_id)
-    await room_service.session.commit()
-    return None
+    return response
 
 @room_landlord_router.post("/{room_id}/images", response_model=List[RoomImageRead])
 async def add_room_images_landlord(
