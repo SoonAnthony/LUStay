@@ -16,6 +16,8 @@ class RoomStatus(str, enum.Enum):
 
 
 class RoomType(SQLModel, table=True):
+    __tablename__ = "room_types"
+
     id: uuid.UUID = Field(
         default_factory=uuid.uuid4,
         sa_column=Column(UUID(as_uuid=True), primary_key=True, nullable=False)
@@ -23,7 +25,7 @@ class RoomType(SQLModel, table=True):
     hostel_id: uuid.UUID = Field(
         sa_column=Column(
             UUID(as_uuid=True),
-            ForeignKey("hostel.id"),
+            ForeignKey("hostels.id"),
             nullable=False
         )
     )
@@ -40,6 +42,8 @@ class RoomType(SQLModel, table=True):
 
 
 class RoomTypeImage(SQLModel, table=True):
+    __tablename__ = "room_type_images"
+
     id: uuid.UUID = Field(
         default_factory=uuid.uuid4,
         sa_column=Column(UUID(as_uuid=True), primary_key=True, nullable=False)
@@ -47,7 +51,7 @@ class RoomTypeImage(SQLModel, table=True):
     room_type_id: uuid.UUID = Field(
         sa_column=Column(
             UUID(as_uuid=True),
-            ForeignKey("roomtype.id"),
+            ForeignKey("room_types.id"),
             nullable=False
         )
     )
@@ -59,6 +63,8 @@ class RoomTypeImage(SQLModel, table=True):
 
 
 class Room(SQLModel, table=True):
+    __tablename__ = "rooms"
+
     id: uuid.UUID = Field(
         default_factory=uuid.uuid4,
         sa_column=Column(UUID(as_uuid=True), primary_key=True, nullable=False)
@@ -66,14 +72,14 @@ class Room(SQLModel, table=True):
     hostel_id: uuid.UUID = Field(
         sa_column=Column(
             UUID(as_uuid=True),
-            ForeignKey("hostel.id"),
+            ForeignKey("hostels.id"),
             nullable=False
         )
     )
     room_type_id: uuid.UUID = Field(
         sa_column=Column(
             UUID(as_uuid=True),
-            ForeignKey("roomtype.id"),
+            ForeignKey("room_types.id"),
             nullable=False
         )
     )
