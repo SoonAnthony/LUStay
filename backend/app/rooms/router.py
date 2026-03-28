@@ -19,13 +19,13 @@ from app.db.engine import get_session
 from app.user.models import User
 
 # Routers
-landlord_router = APIRouter(prefix="/landlord/rooms", tags=["Rooms Landlord"])
-admin_router = APIRouter(prefix="/admin/rooms", tags=["Rooms Admin"])
-public_router = APIRouter(prefix="/rooms", tags=["Rooms Public"])
+room_landlord_router = APIRouter(prefix="/landlord/rooms", tags=["Rooms Landlord"])
+room_admin_router = APIRouter(prefix="/admin/rooms", tags=["Rooms Admin"])
+room_public_router = APIRouter(prefix="/rooms", tags=["Rooms Public"])
 
 
 # LANDLORD ROUTES
-@landlord_router.post("/room-types/", response_model=RoomTypeRead)
+@room_landlord_router.post("/room-types/", response_model=RoomTypeRead)
 async def create_room_type_landlord(
     data: RoomTypeCreate,
     current_user: User = Depends(get_current_user),
@@ -38,7 +38,7 @@ async def create_room_type_landlord(
     return await service.create_room_type(data, current_user)
 
 
-@landlord_router.post("/room-types/{room_type_id}/images/", response_model=List[RoomTypeImageRead])
+@room_landlord_router.post("/room-types/{room_type_id}/images/", response_model=List[RoomTypeImageRead])
 async def upload_room_type_images_landlord(
     room_type_id: UUID,
     files: List[UploadFile] = File(...),
@@ -52,7 +52,7 @@ async def upload_room_type_images_landlord(
     return await service.add_room_type_images(room_type_id, files, current_user)
 
 
-@landlord_router.post("/", response_model=RoomRead)
+@room_landlord_router.post("/", response_model=RoomRead)
 async def create_room_landlord(
     data: RoomCreate,
     current_user: User = Depends(get_current_landlord_or_admin),
@@ -65,7 +65,7 @@ async def create_room_landlord(
     return await service.create_room(data, current_user)
 
 
-@landlord_router.patch("/{room_id}/", response_model=RoomRead)
+@room_landlord_router.patch("/{room_id}/", response_model=RoomRead)
 async def update_room_landlord(
     room_id: UUID,
     data: RoomUpdate,
@@ -76,7 +76,7 @@ async def update_room_landlord(
     return await service.update_room(room_id, data, current_user)
 
 
-@landlord_router.delete("/{room_id}/", status_code=204)
+@room_landlord_router.delete("/{room_id}/", status_code=204)
 async def delete_room_landlord(
     room_id: UUID,
     current_user: User = Depends(get_current_landlord_or_admin),
@@ -88,7 +88,7 @@ async def delete_room_landlord(
 
 
 # ADMIN ROUTES
-@admin_router.post("/", response_model=RoomRead)
+@room_admin_router.post("/", response_model=RoomRead)
 async def create_room_admin(
     data: RoomCreate,
     current_user: User = Depends(get_current_admin),
@@ -101,7 +101,7 @@ async def create_room_admin(
     return await service.create_room(data, current_user)
 
 
-@admin_router.patch("/{room_id}/", response_model=RoomRead)
+@room_admin_router.patch("/{room_id}/", response_model=RoomRead)
 async def update_room_admin(
     room_id: UUID,
     data: RoomUpdate,
@@ -112,7 +112,7 @@ async def update_room_admin(
     return await service.update_room(room_id, data, current_user)
 
 
-@admin_router.delete("/{room_id}/", status_code=204)
+@room_admin_router.delete("/{room_id}/", status_code=204)
 async def delete_room_admin(
     room_id: UUID,
     current_user: User = Depends(get_current_admin),
@@ -124,19 +124,19 @@ async def delete_room_admin(
 
 
 # PUBLIC ROUTES
-@public_router.get("/room-types/", response_model=List[RoomTypeRead])
+@room_public_router.get("/room-types/", response_model=List[RoomTypeRead])
 async def list_room_types(hostel_id: Optional[UUID] = Query(None), session: AsyncSession = Depends(get_session)):
     service = RoomService(session)
     return await service.get_room_types(hostel_id)
 
 
-@public_router.get("/rooms/", response_model=List[RoomRead])
+@room_public_router.get("/rooms/", response_model=List[RoomRead])
 async def list_rooms(hostel_id: Optional[UUID] = Query(None), session: AsyncSession = Depends(get_session)):
     service = RoomService(session)
     return await service.get_rooms(hostel_id)
 
 
-@public_router.get("/rooms/{room_id}/", response_model=RoomRead)
+@room_public_router.get("/rooms/{room_id}/", response_model=RoomRead)
 async def get_room_public(room_id: UUID, session: AsyncSession = Depends(get_session)):
     service = RoomService(session)
     return await service.get_room(room_id)
