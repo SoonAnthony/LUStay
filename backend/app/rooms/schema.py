@@ -1,7 +1,7 @@
 # backend/app/rooms/schema.py
 from typing import List, Optional
 import uuid
-from pydantic import BaseModel, Field as PydanticField
+from pydantic import BaseModel, Field as PydanticField, ConfigDict
 from app.rooms.models import RoomStatus
 
 # RoomType Schemas
@@ -19,8 +19,7 @@ class RoomTypeRead(RoomTypeBase):
     id: uuid.UUID
     hostel_id: uuid.UUID
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # RoomTypeImage Schemas
@@ -34,8 +33,7 @@ class RoomTypeImageRead(RoomTypeImageBase):
     id: uuid.UUID
     room_type_id: uuid.UUID
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Room Schemas
@@ -60,5 +58,4 @@ class RoomRead(RoomBase):
     room_type: Optional[RoomTypeRead] = None
     images: Optional[List[RoomTypeImageRead]] = None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
