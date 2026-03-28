@@ -7,14 +7,6 @@ from sqlalchemy.dialects.postgresql import UUID
 from app.user.models import User
 import enum
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from app.rooms.models import Room
-
-
-
-
 class HostelAmenity(SQLModel, table=True):
 
     __tablename__ = "hostel_amenities"
@@ -113,10 +105,7 @@ class Hostel(SQLModel, table=True):
         back_populates="hostels",
         link_model=HostelAmenity
     )
-    rooms: List["Room"] = Relationship(
-        back_populates="hostel",
-        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
-    )
+    
 
 
 class HostelImage(SQLModel, table=True):
