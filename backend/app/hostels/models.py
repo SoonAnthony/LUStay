@@ -7,6 +7,8 @@ from sqlalchemy.dialects.postgresql import UUID
 from app.user.models import User
 import enum
 
+from app.rooms.models import RoomType
+
 class HostelAmenity(SQLModel, table=True):
 
     __tablename__ = "hostel_amenities"
@@ -105,6 +107,7 @@ class Hostel(SQLModel, table=True):
         back_populates="hostels",
         link_model=HostelAmenity
     )
+    room_types: List["RoomType"] = Relationship(back_populates="hostel")
     
 
 
