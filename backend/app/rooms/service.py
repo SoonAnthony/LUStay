@@ -6,7 +6,7 @@ from sqlmodel import select
 from sqlalchemy.orm import selectinload
 
 from app.rooms.models import Room, RoomType, RoomTypeImage, RoomStatus
-from app.rooms.schema import RoomCreate, RoomUpdate, RoomTypeCreate
+from app.rooms.schema import RoomCreate, RoomUpdate, RoomTypeCreate, RoomTypeImageRead
 from app.hostels.models import Hostel
 from app.user.models import User
 from app.core.cloudinary_services import upload_images
@@ -69,7 +69,11 @@ class RoomService:
             images.append(img)
 
         await self.session.commit()
-        return images
+        for img in images:
+            await self.session.refresh(img)
+
+        return [RoomTypeImageRead.model_validate(img) for img in images]
+
 
     # Create Room (Admin or Landlord
     async def create_room(self, data: RoomCreate, current_user: User) -> Room:
