@@ -7,7 +7,10 @@ from sqlalchemy.dialects.postgresql import UUID
 from app.user.models import User
 import enum
 
-from app.rooms.models import RoomType
+from typing import List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.rooms.models import RoomType
 
 class HostelAmenity(SQLModel, table=True):
 

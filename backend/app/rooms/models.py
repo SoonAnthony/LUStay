@@ -6,7 +6,10 @@ from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 
-from app.hostels.models import Hostel
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.hostels.models import Hostel
 
 class RoomStatus(str, enum.Enum):
     AVAILABLE = "AVAILABLE"
