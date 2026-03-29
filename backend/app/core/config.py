@@ -15,9 +15,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int
     REFRESH_TOKEN_EXPIRE_DAYS: int
     #Cloudinary configuration
-    CLOUDINARY_CLOUD_NAME: str
-    CLOUDINARY_API_KEY: str
-    CLOUDINARY_API_SECRET: str
+    CLOUDINARY_URL: str
 
     @property
     def DATABASE_URL(self) -> str:
