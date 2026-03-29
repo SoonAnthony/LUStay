@@ -130,7 +130,7 @@ async def list_rooms(hostel_id: Optional[UUID] = Query(None), session: AsyncSess
     return await service.list_rooms(hostel_id)
 
 
-@room_public_router.get("/rooms/{room_id}/", response_model=RoomRead)
+@room_public_router.get("/{room_id}/", response_model=RoomRead)
 async def get_room_public(room_id: UUID, session: AsyncSession = Depends(get_session)):
     service = RoomService(session)
     return await service.get_room(room_id)
