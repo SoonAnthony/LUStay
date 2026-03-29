@@ -39,7 +39,7 @@ class RoomType(SQLModel, table=True):
     description: Optional[str] = None
 
     # Relationships
-    hostel: Optional[Hostel] = Relationship(back_populates="room_types")
+    hostel: Optional["Hostel"] = Relationship(back_populates="room_types")
     rooms: List["Room"] = Relationship(back_populates="room_type")
     images: List["RoomTypeImage"] = Relationship(back_populates="room_type")
 
@@ -62,7 +62,7 @@ class RoomTypeImage(SQLModel, table=True):
   
 
     # Relationships
-    room_type: Optional[RoomType] = Relationship(back_populates="images")
+    room_type: Optional["RoomType"] = Relationship(back_populates="images")
 
 
 class Room(SQLModel, table=True):
@@ -91,5 +91,5 @@ class Room(SQLModel, table=True):
     occupants: int = Field(default=0)  # 0, 1, or 2
 
     # Relationships
-    hostel: Optional[Hostel] = Relationship()
-    room_type: Optional[RoomType] = Relationship(back_populates="rooms")
+    hostel: Optional["Hostel"] = Relationship(back_populates="rooms")
+    room_type: Optional["RoomType"] = Relationship(back_populates="rooms")
