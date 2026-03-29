@@ -124,10 +124,10 @@ async def delete_room_admin(
 
 
 # PUBLIC ROUTES
-@room_public_router.get("/rooms/", response_model=List[RoomRead])
+@room_public_router.get("/", response_model=List[RoomRead])
 async def list_rooms(hostel_id: Optional[UUID] = Query(None), session: AsyncSession = Depends(get_session)):
     service = RoomService(session)
-    return await service.get_rooms(hostel_id)
+    return await service.list_rooms(hostel_id)
 
 
 @room_public_router.get("/rooms/{room_id}/", response_model=RoomRead)
