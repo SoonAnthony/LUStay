@@ -49,7 +49,7 @@ async def upload_room_type_images_landlord(
     Upload images for a RoomType (Landlord only)
     """
     service = RoomService(session)
-    return await service.add_room_type_images(room_type_id, files, current_user)
+    return await service.add_roomtype_images(room_type_id, files, current_user)
 
 
 @room_landlord_router.post("/", response_model=RoomRead)
