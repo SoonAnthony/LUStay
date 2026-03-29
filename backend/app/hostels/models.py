@@ -10,7 +10,7 @@ import enum
 from typing import List, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.rooms.models import RoomType
+    from app.rooms.models import RoomType, Room
 
 class HostelAmenity(SQLModel, table=True):
 
@@ -111,6 +111,7 @@ class Hostel(SQLModel, table=True):
         link_model=HostelAmenity
     )
     room_types: List["RoomType"] = Relationship(back_populates="hostel")
+    rooms: List["Room"] = Relationship(back_populates="hostel")
     
 
 
