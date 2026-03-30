@@ -31,7 +31,7 @@ from .dependencies import (
     get_current_admin
 )
 from app.user.utils import create_access_token, create_refresh_token, decode_refresh_token
-
+from app.core.tokens import decode_token, TokenType
 
 user_router = APIRouter(tags=["Users"])
 user_service = UserService()
@@ -337,3 +337,40 @@ async def review_request(
     """
     request = await landlord_service.update_request(session, request_id, admin.id, payload)
     return LandlordRequestRead.model_validate(request)
+
+
+#confirmation links routes
+@user_router.get("/auth/confirm")
+async def confirm_action(token: str, session: AsyncSession = Depends(get_session)):
+    try:
+        payload = decode_token(token)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    user_id = payload["user_id"]
+    action_type = payload["type"]
+
+    user = await session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if action_type == TokenType.EMAIL_VERIFY:
+        user.is_verified = True
+    elif action_type == TokenType.PASSWORD_RESET:
+        user.password_hash = user.pending_password
+        user.pending_password = None
+    elif action_type == TokenType.EMAIL_CHANGE:
+        user.email = user.pending_email or payload.get("new_email")
+        user.pending_email = None
+        user.is_verified = True
+    elif action_type == TokenType.PHONE_CHANGE:
+        user.phone_number = user.pending_phone or payload.get("new_phone")
+        user.pending_phone = None
+    else:
+        raise HTTPException(status_code=400, detail="Unknown action type")
+
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+
+    return {"message": f"{action_type} confirmed successfully"}
