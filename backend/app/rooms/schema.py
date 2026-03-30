@@ -1,4 +1,3 @@
-# backend/app/rooms/schema.py
 from typing import List, Optional
 import uuid
 from pydantic import BaseModel, Field as PydanticField, ConfigDict
