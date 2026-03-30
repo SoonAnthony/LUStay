@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int
     #Cloudinary configuration
     CLOUDINARY_URL: str
+    #Brevo configuration
+    BREVO_API_KEY: str
+    BREVO_SENDER_EMAIL: str
+    BREVO_SENDER_NAME: str = "LUStay"
+
 
     @property
     def DATABASE_URL(self) -> str:
