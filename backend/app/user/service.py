@@ -169,7 +169,8 @@ class UserService:
         )
 
         # Build confirmation link
-        link = f"{settings.FRONTEND_URL}/auth/confirm?token={token}"
+        link = f"http://localhost:8000/auth/confirm?token={token}"
+
 
         # Send email
         mailer = MailService(settings.BREVO_API_KEY, settings.BREVO_SENDER_EMAIL, settings.BREVO_SENDER_NAME)
@@ -204,7 +205,8 @@ class UserService:
             expires_minutes=30
         )
 
-        link = f"{settings.FRONTEND_URL}/auth/confirm?token={token}"
+        link = f"http://localhost:8000/auth/confirm?token={token}"
+
 
         mailer = MailService(settings.BREVO_API_KEY, settings.BREVO_SENDER_EMAIL, settings.BREVO_SENDER_NAME)
         await mailer.send_email(
@@ -243,7 +245,8 @@ class UserService:
             )
 
             # Build confirmation link
-            link = f"{settings.FRONTEND_URL}/auth/confirm?token={token}"
+            link = f"http://localhost:8000/auth/confirm?token={token}"
+
 
             # Send email
             mailer = MailService(settings.BREVO_API_KEY, settings.BREVO_SENDER_EMAIL, settings.BREVO_SENDER_NAME)
