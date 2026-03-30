@@ -99,42 +99,107 @@ class UserService:
             raise DatabaseError(f"Failed to fetch users: {str(e)}")
     # -------------------- Create / Update / Delete -------------------- #
     
-    async def create_user(self, session: AsyncSession, payload: UserCreateSchema,  hashed_password: str) -> User:
-        """Prepare a new user object (commit in routes)."""
+    async def create_user(self, session: AsyncSession, payload: UserCreateSchema, hashed_password: str) -> User:
         try:
             user = User(
                 first_name=payload.first_name,
                 last_name=payload.last_name,
                 email=payload.email,
                 phone_number=payload.phone_number,
-                password_hash=hashed_password,  # hash in routes
+                password_hash=hashed_password,
                 role=UserRole.STUDENT,
             )
             session.add(user)
             return user
+
         except IntegrityError as e:
-            raise UserAlreadyExistsError(f"Email or phone already exists: {str(e)}")
+            # Inspect the error string to determine which unique constraint failed
+            err_msg = str(e.orig)
+            if "users_email_key" in err_msg or "ix_users_email" in err_msg:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Email already registered"
+                )
+            elif "users_phone_number_key" in err_msg or "ix_users_phone_number" in err_msg:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Phone number already registered"
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Duplicate value violates unique constraint"
+                )
+
         except Exception as e:
-            raise DatabaseError(f"Failed to create user: {str(e)}")
-    
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to create user: {str(e)}"
+            )
+
     async def update_user(self, user: User, payload: UserUpdateSchema) -> User:
-        """Update user-level fields (commit in routes)."""
         try:
             for field, value in payload.model_dump(exclude_unset=True).items():
                 setattr(user, field, value)
             return user
+
+        except IntegrityError as e:
+            err_msg = str(e.orig)
+            if "users_email_key" in err_msg or "ix_users_email" in err_msg:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Email already registered"
+                )
+            elif "users_phone_number_key" in err_msg or "ix_users_phone_number" in err_msg:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Phone number already registered"
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Duplicate value violates unique constraint"
+                )
+
         except Exception as e:
-            raise DatabaseError(f"Failed to update user: {str(e)}")
-    
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to update user: {str(e)}"
+            )
+
+
     async def admin_update_user(self, user: User, payload: AdminUserUpdateSchema) -> User:
         """Admin can update any user's info including role and suspension."""
         try:
             for field, value in payload.model_dump(exclude_unset=True).items():
                 setattr(user, field, value)
             return user
+
+        except IntegrityError as e:
+            err_msg = str(e.orig)
+            if "users_email_key" in err_msg or "ix_users_email" in err_msg:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Email already registered"
+                )
+            elif "users_phone_number_key" in err_msg or "ix_users_phone_number" in err_msg:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Phone number already registered"
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Duplicate value violates unique constraint"
+                )
+
         except Exception as e:
-            raise DatabaseError(f"Failed to admin-update user: {str(e)}")
-    
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to admin-update user: {str(e)}"
+            )
+
+
     async def delete_user(self, user: User) -> User:
         """Prepare user for deletion (commit in routes)."""
         try:
