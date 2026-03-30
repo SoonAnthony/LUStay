@@ -59,9 +59,36 @@ async def register(
         )
         await session.commit()
         await session.refresh(user)
+
+        # Only send email if commit succeeded
+        token = create_token(
+            user_id=str(user.id),
+            type=TokenType.EMAIL_VERIFY,
+            expires_minutes=30
+        )
+        link = f"http://localhost:8000/auth/confirm?token={token}"
+
+        mailer = MailService(
+            settings.BREVO_API_KEY,
+            settings.BREVO_SENDER_EMAIL,
+            settings.BREVO_SENDER_NAME
+        )
+        await mailer.send_email(
+            to_email=user.email,
+            to_name=f"{user.first_name} {user.last_name}",
+            subject="Verify your LUStay account",
+            html_content=f"""
+                <p>Hello {user.first_name},</p>
+                <p>Thanks for registering! Please verify your email by clicking the link below:</p>
+                <p><a href="{link}">Verify Email</a></p>
+                <p>This link will expire in 30 minutes.</p>
+            """
+        )
+
         return UserSelfSchema.model_validate(user)
 
     except IntegrityError as e:
+        await session.rollback()  # rollback transaction
         err_msg = str(e.orig)
         if "users_email_key" in err_msg or "ix_users_email" in err_msg:
             raise HTTPException(status_code=400, detail="Email already registered")
@@ -69,6 +96,11 @@ async def register(
             raise HTTPException(status_code=400, detail="Phone number already registered")
         else:
             raise HTTPException(status_code=400, detail="Duplicate value violates unique constraint")
+
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to register user: {str(e)}")
+
 
 
 
