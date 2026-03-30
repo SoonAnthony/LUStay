@@ -32,21 +32,17 @@ from .dependencies import (
 )
 from app.user.utils import create_access_token, create_refresh_token, decode_refresh_token
 from app.core.tokens import decode_token, TokenType
+from sqlalchemy.exc import IntegrityError
+
 
 user_router = APIRouter(tags=["Users"])
 user_service = UserService()
 
-# ============================================================
 # SELF ROUTES (Regular User)
-# ============================================================
-
 @user_router.get("/me", response_model=UserSchema)
 async def get_self(
     current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Get the currently logged-in user.
-    """
     return UserSelfSchema.model_validate(current_user)
 
 
@@ -55,18 +51,25 @@ async def register(
     payload: UserCreateSchema,
     session: AsyncSession = Depends(get_session),
 ):
-    
-     """
-     Register a new user.
-     """
-     user = await user_service.create_user(
-        session,
-        payload,
-        hashed_password=hash_password(payload.password)
-     )
-     await session.commit()
-     await session.refresh(user)
-     return UserSelfSchema.model_validate(user)
+    try:
+        user = await user_service.create_user(
+            session,
+            payload,
+            hashed_password=hash_password(payload.password)
+        )
+        await session.commit()
+        await session.refresh(user)
+        return UserSelfSchema.model_validate(user)
+
+    except IntegrityError as e:
+        err_msg = str(e.orig)
+        if "users_email_key" in err_msg or "ix_users_email" in err_msg:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        elif "users_phone_number_key" in err_msg or "ix_users_phone_number" in err_msg:
+            raise HTTPException(status_code=400, detail="Phone number already registered")
+        else:
+            raise HTTPException(status_code=400, detail="Duplicate value violates unique constraint")
+
 
 
 @user_router.patch("/me", response_model=UserSchema)
@@ -75,19 +78,23 @@ async def update_self(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Update the current user's own data.
-    """
-    user = await user_service.update_user(current_user, payload)
-    await session.commit()
-    await session.refresh(user)
-    return user
+    try:
+        user = await user_service.update_user(current_user, payload)
+        await session.commit()
+        await session.refresh(user)
+        return user
+
+    except IntegrityError as e:
+        err_msg = str(e.orig)
+        if "users_email_key" in err_msg or "ix_users_email" in err_msg:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        elif "users_phone_number_key" in err_msg or "ix_users_phone_number" in err_msg:
+            raise HTTPException(status_code=400, detail="Phone number already registered")
+        else:
+            raise HTTPException(status_code=400, detail="Duplicate value violates unique constraint")
 
 
-# ============================================================
 # EMAIL / PHONE / PASSWORD CHANGE REQUESTS
-# ============================================================
-
 @user_router.post("/me/request-email-change")
 async def request_email_change(
     payload: RequestEmailChangeSchema,
@@ -121,9 +128,8 @@ async def request_password_change(
     return {"message": "Password change request submitted. Check your OTP to confirm."}
 
 
-#===============================
+
 # POST /auth/login
-# ===============================
 @user_router.post("/login", response_model=TokenResponse)
 async def login(
     payload: LoginSchema,
@@ -135,18 +141,12 @@ async def login(
     tokens = await user_service.login(session, payload)
     return tokens
 
-# ===============================
 # POST /auth/refresh
-# ===============================
 @user_router.post("/refresh", response_model=RefreshTokenResponse)
 async def refresh_token(
     refresh_token: str = Body(..., embed=True),
     session: AsyncSession = Depends(get_session)
 ):
-    """
-    Generate a new access token using a valid refresh token.
-    """
-
     # Decode the refresh token
     payload = decode_refresh_token(refresh_token)
     if not payload:
@@ -186,10 +186,7 @@ async def refresh_token(
     }
 
 
-# ============================================================
 # ADMIN ROUTES
-# ============================================================
-
 admin_router = APIRouter(prefix="/admin", tags=["Admin Users"])
 
 @admin_router.get("/users", response_model=PaginatedUsers)
@@ -216,16 +213,36 @@ async def get_user_admin(
 async def create_user(
     payload: UserCreateSchema,
     session: AsyncSession = Depends(get_session),
-    _: User = Depends(get_current_admin)  # underscore signals "we're not using this variable"
+    _: User = Depends(get_current_admin) 
 ):
-    user = await user_service.create_user(
-        session,
-        payload,
-        hashed_password=hash_password(payload.password)
-    )
-    await session.commit()
-    await session.refresh(user)
-    return user
+    try:
+        user = await user_service.create_user(
+            session,
+            payload,
+            hashed_password=hash_password(payload.password)
+        )
+        await session.commit()
+        await session.refresh(user)
+        return user
+
+    except IntegrityError as e:
+        err_msg = str(e.orig)
+        if "users_email_key" in err_msg or "ix_users_email" in err_msg:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+        elif "users_phone_number_key" in err_msg or "ix_users_phone_number" in err_msg:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Phone number already registered"
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Duplicate value violates unique constraint"
+            )
+
 
 
 @admin_router.patch("/users/{user_id}", response_model=AdminUserSchema)
@@ -235,11 +252,21 @@ async def admin_update_user(
     session: AsyncSession = Depends(get_session),
     _: User = Depends(get_current_admin)
 ):
-    user = await user_service.get_user(session, user_id)
-    user = await user_service.admin_update_user(user, payload)
-    await session.commit()
-    await session.refresh(user)
-    return user
+    try:
+        user = await user_service.get_user(session, user_id)
+        user = await user_service.admin_update_user(user, payload)
+        await session.commit()
+        await session.refresh(user)
+        return user
+
+    except IntegrityError as e:
+        err_msg = str(e.orig)
+        if "users_email_key" in err_msg or "ix_users_email" in err_msg:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        elif "users_phone_number_key" in err_msg or "ix_users_phone_number" in err_msg:
+            raise HTTPException(status_code=400, detail="Phone number already registered")
+        else:
+            raise HTTPException(status_code=400, detail="Duplicate value violates unique constraint")
 
 
 @admin_router.delete("/users/{user_id}", status_code=status.HTTP_200_OK)
@@ -262,10 +289,7 @@ async def delete_user(
 landlord_router = APIRouter(prefix="/me/landlord-requests", tags=["Landlord Requests"])
 landlord_service = LandlordRequestService()
 
-# ==============================
 # USER ROUTES
-# ==============================
-
 @landlord_router.post("/", response_model=LandlordRequestRead, status_code=status.HTTP_201_CREATED)
 async def create_landlord_request(
     payload: LandlordRequestCreate,
@@ -307,10 +331,7 @@ async def get_my_request(
     return LandlordRequestRead.model_validate(request)
 
 
-# ==============================
 # ADMIN ROUTES
-# ==============================
-
 admin_landlord_router = APIRouter(prefix="/admin/landlord-requests", tags=["Admin Landlord Requests"])
 
 @admin_landlord_router.get("/", response_model=List[LandlordRequestRead])
