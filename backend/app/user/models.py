@@ -83,16 +83,10 @@ class User(SQLModel, table=True):
     # Temporary fields for email/phone verification
     pending_email: Optional[EmailStr] = Field(default=None, max_length=150)
     pending_phone: Optional[str] = Field(default=None, max_length=13)
-    email_otp: Optional[str] = Field(default=None, max_length=6)
-    phone_otp: Optional[str] = Field(default=None, max_length=6)
-    otp_expiry: datetime | None = Field(
-        default=None,
-        sa_column=Column(DateTime(timezone=True))
-    )
 
     # Temporary fields for password verification
     pending_password: Optional[str] = Field(default=None, max_length=128)
-    password_otp: Optional[str] = Field(default=None, max_length=6)
+    
 
     
     # Relationships
