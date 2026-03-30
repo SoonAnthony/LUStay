@@ -76,7 +76,7 @@ async def update_room_landlord(
     return await service.update_room(room_id, data, current_user)
 
 
-@room_landlord_router.delete("/{room_id}/", status_code=204)
+@room_landlord_router.delete("/{room_id}/", status_code=200)
 async def delete_room_landlord(
     room_id: UUID,
     current_user: User = Depends(get_current_landlord_or_admin),
