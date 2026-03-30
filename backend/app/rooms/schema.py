@@ -4,6 +4,22 @@ import uuid
 from pydantic import BaseModel, Field as PydanticField, ConfigDict
 from app.rooms.models import RoomStatus
 
+# RoomTypeImage Schemas
+class RoomTypeImageBase(BaseModel):
+    image_url: str
+
+class RoomTypeImageCreate(RoomTypeImageBase):
+    room_type_id: uuid.UUID
+
+class RoomTypeImageRead(RoomTypeImageBase):
+    id: uuid.UUID
+    room_type_id: uuid.UUID
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+
+
 # RoomType Schemas
 class RoomTypeBase(BaseModel):
     name: str  # "Self" or "Single"
@@ -18,20 +34,8 @@ class RoomTypeCreate(RoomTypeBase):
 class RoomTypeRead(RoomTypeBase):
     id: uuid.UUID
     hostel_id: uuid.UUID
+    images: Optional[List[RoomTypeImageRead]] = None
 
-    model_config = ConfigDict(from_attributes=True)
-
-
-# RoomTypeImage Schemas
-class RoomTypeImageBase(BaseModel):
-    image_url: str
-
-class RoomTypeImageCreate(RoomTypeImageBase):
-    room_type_id: uuid.UUID
-
-class RoomTypeImageRead(RoomTypeImageBase):
-    id: uuid.UUID
-    room_type_id: uuid.UUID
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -56,6 +60,5 @@ class RoomRead(RoomBase):
     hostel_id: uuid.UUID
     room_type_id: uuid.UUID
     room_type: Optional[RoomTypeRead] = None
-    images: Optional[List[RoomTypeImageRead]] = None
 
     model_config = ConfigDict(from_attributes=True)
