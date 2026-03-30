@@ -110,26 +110,42 @@ class UserService:
                 role=UserRole.STUDENT,
             )
             session.add(user)
+
+            # Generate verification token
+            token = create_token(
+                user_id=str(user.id),
+                type=TokenType.EMAIL_VERIFY,
+                expires_minutes=30
+            )
+            link = f"http://localhost:8000/auth/confirm?token={token}"
+
+            # Send verification email via Brevo
+            mailer = MailService(
+                settings.BREVO_API_KEY,
+                settings.BREVO_SENDER_EMAIL,
+                settings.BREVO_SENDER_NAME
+            )
+            await mailer.send_email(
+                to_email=user.email,
+                subject="Verify your LUStay account",
+                html_content=f"""
+                    <p>Hello {user.first_name},</p>
+                    <p>Thanks for registering! Please verify your email by clicking the link below:</p>
+                    <p><a href="{link}">Verify Email</a></p>
+                    <p>This link will expire in 30 minutes.</p>
+                """
+            )
+
             return user
 
         except IntegrityError as e:
-            # Inspect the error string to determine which unique constraint failed
             err_msg = str(e.orig)
             if "users_email_key" in err_msg or "ix_users_email" in err_msg:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Email already registered"
-                )
+                raise HTTPException(status_code=400, detail="Email already registered")
             elif "users_phone_number_key" in err_msg or "ix_users_phone_number" in err_msg:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Phone number already registered"
-                )
+                raise HTTPException(status_code=400, detail="Phone number already registered")
             else:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Duplicate value violates unique constraint"
-                )
+                raise HTTPException(status_code=400, detail="Duplicate value violates unique constraint")
 
         except Exception as e:
             raise HTTPException(
