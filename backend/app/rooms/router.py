@@ -112,7 +112,7 @@ async def update_room_admin(
     return await service.update_room(room_id, data, current_user)
 
 
-@room_admin_router.delete("/{room_id}/", status_code=204)
+@room_admin_router.delete("/{room_id}/", status_code=200)
 async def delete_room_admin(
     room_id: UUID,
     current_user: User = Depends(get_current_admin),
