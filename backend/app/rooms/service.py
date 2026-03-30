@@ -94,6 +94,14 @@ class RoomService:
         self.session.add(room)
         await self.session.commit()
         await self.session.refresh(room)
+        result = await self.session.execute(
+            select(Room)
+            .options(
+                selectinload(Room.room_type).selectinload(RoomType.images)
+            )
+            .where(Room.id == room.id)
+        )
+        room = result.scalar_one()
         return room
 
     # List Rooms (public)
