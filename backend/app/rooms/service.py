@@ -1,4 +1,4 @@
-# backend/app/rooms/service.py
+from fastapi import HTTPException
 from typing import List, Optional
 from uuid import UUID
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -117,14 +117,18 @@ class RoomService:
 
     # Get Single Room (public)
     async def get_room(self, room_id: UUID) -> Room:
-        room = await self.session.get(
-            Room,
-            room_id,
-            options=selectinload(Room.room_type).selectinload(RoomType.images)
+        result = await self.session.execute(
+            select(Room)
+            .options(
+                selectinload(Room.room_type).selectinload(RoomType.images)
+            )
+            .where(Room.id == room_id)
         )
+        room = result.scalar_one_or_none()
         if not room:
-            raise ValueError("Room not found")
+            raise HTTPException(status_code=404, detail="Room not found")
         return room
+
 
     # Update Room (Admin or Landlord)
     async def update_room(self, room_id: UUID, data: RoomUpdate, current_user: User) -> Room:
