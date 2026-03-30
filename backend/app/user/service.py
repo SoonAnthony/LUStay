@@ -33,7 +33,9 @@ from .exceptions import UserAlreadyExistsError, UserNotFoundError, DatabaseError
 from app.core.security import verify_password, hash_password
 from .utils import create_access_token, create_refresh_token, decode_access_token, decode_refresh_token
 from fastapi import HTTPException, status
-
+from app.core.config import settings
+from app.core.mail_services import MailService
+from app.core.tokens import create_token, TokenType
 
 class UserService:
     # -------------------- User / Admin GET -------------------- #
@@ -143,52 +145,78 @@ class UserService:
     # -------------------- Email / Phone / Password -------------------- #
     
     async def request_email_change(self, session: AsyncSession, user_id: str, payload: RequestEmailChangeSchema) -> User:
-        """Set pending email with OTP (commit in routes)."""
-        try:
-            user = await session.get(User, user_id)
-            if not user:
-                raise UserNotFoundError(f"User {user_id} not found")
+        user = await session.get(User, user_id)
+        if not user:
+            raise UserNotFoundError(f"User {user_id} not found")
 
-            # Verify current password
-            if not verify_password(payload.password, user.password_hash):
-                raise HTTPException(
-                    status_code=401, 
-                    detail="Current password is incorrect"
-                )
+        # Verify current password
+        if not verify_password(payload.password, user.password_hash):
+            raise HTTPException(
+                status_code=401, 
+                detail="Current password is incorrect"
+            )
 
 
-            user.pending_email = payload.new_email
-            user.email_otp = self._generate_otp()
-            user.otp_expiry = datetime.now(timezone.utc) + timedelta(minutes=15)
-            session.add(user)
-            return user
-        except Exception as e:
-            raise DatabaseError(f"Failed to request email change: {str(e)}")
+        user.pending_email = payload.new_email
+        session.add(user)
+
+        # Generate token
+        token = create_token(
+            user_id=str(user.id),
+            type=TokenType.EMAIL_CHANGE,
+            metadata={"new_email": payload.new_email},
+            expires_minutes=30
+        )
+
+        # Build confirmation link
+        link = f"{settings.FRONTEND_URL}/auth/confirm?token={token}"
+
+        # Send email
+        mailer = MailService(settings.BREVO_API_KEY, settings.BREVO_SENDER_EMAIL, settings.BREVO_SENDER_NAME)
+        await mailer.send_email(
+            to_email=payload.new_email,
+            subject="Confirm your new email",
+            html_content=f"<p>Click <a href='{link}'>here</a> to confirm your new email.</p>"
+        )
+
+        return user
+
 
     async def request_phone_change(self, session: AsyncSession, user_id: str, payload: RequestPhoneChangeSchema) -> User:
-        """Set pending phone with OTP (commit in routes)."""
-        try:
-            user = await session.get(User, user_id)
-            if not user:
-                raise UserNotFoundError(f"User {user_id} not found")
+        user = await session.get(User, user_id)
+        if not user:
+            raise UserNotFoundError(f"User {user_id} not found")
 
-            # Verify current password
-            if not verify_password(payload.password, user.password_hash):
-                raise HTTPException(
-                    status_code=401, 
-                    detail="Current password is incorrect"
-                )
+        # Verify current password
+        if not verify_password(payload.password, user.password_hash):
+            raise HTTPException(
+                status_code=401, 
+                detail="Current password is incorrect"
+            )
 
-            user.pending_phone = payload.new_phone
-            user.phone_otp = self._generate_otp()
-            user.otp_expiry = datetime.now(timezone.utc) + timedelta(minutes=15)
-            session.add(user)
-            return user
-        except Exception as e:
-            raise DatabaseError(f"Failed to request phone change: {str(e)}")
+        user.pending_phone = payload.new_phone
+        session.add(user)
+
+        token = create_token(
+            user_id=str(user.id),
+            type=TokenType.PHONE_CHANGE,
+            metadata={"new_phone": payload.new_phone},
+            expires_minutes=30
+        )
+
+        link = f"{settings.FRONTEND_URL}/auth/confirm?token={token}"
+
+        mailer = MailService(settings.BREVO_API_KEY, settings.BREVO_SENDER_EMAIL, settings.BREVO_SENDER_NAME)
+        await mailer.send_email(
+            to_email=user.email,
+            subject="Confirm your new phone number",
+            html_content=f"<p>Click <a href='{link}'>here</a> to confirm your new phone number.</p>"
+        )
+
+        return user
+
 
     async def change_password(self, session: AsyncSession, user_id: str, payload: ChangePasswordSchema) -> User:
-        """Update user password (hash in routes)."""
         try:
             user = await session.get(User, user_id)
             if not user:
@@ -204,16 +232,32 @@ class UserService:
             # Validate new password rules
             validate_password_strength(payload.new_password)
 
-            # Hash the new password before storing
             user.pending_password = hash_password(payload.new_password)
-            user.password_otp = self._generate_otp()
-            user.otp_expiry = datetime.now(timezone.utc) + timedelta(minutes=15)
-
             session.add(user)
+
+            # Generate token
+            token = create_token(
+                user_id=str(user.id),
+                type=TokenType.PASSWORD_RESET,
+                expires_minutes=30
+            )
+
+            # Build confirmation link
+            link = f"{settings.FRONTEND_URL}/auth/confirm?token={token}"
+
+            # Send email
+            mailer = MailService(settings.BREVO_API_KEY, settings.BREVO_SENDER_EMAIL, settings.BREVO_SENDER_NAME)
+            await mailer.send_email(
+                to_email=user.email,
+                subject="Confirm your password change",
+                html_content=f"<p>Click <a href='{link}'>here</a> to confirm your password change.</p>"
+            )
+
             return user
 
         except Exception as e:
             raise DatabaseError(f"Failed to request password change: {str(e)}")
+
         
 
 
