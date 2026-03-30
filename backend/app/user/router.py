@@ -399,7 +399,7 @@ async def review_request(
 @user_router.get("/auth/confirm")
 async def confirm_action(token: str, session: AsyncSession = Depends(get_session)):
     try:
-        payload = decode_token(token)
+        payload = decode_token(token)  
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -410,18 +410,31 @@ async def confirm_action(token: str, session: AsyncSession = Depends(get_session
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
+    # Replay protection: reject if already confirmed or no pending action
     if action_type == TokenType.EMAIL_VERIFY:
+        if user.is_verified:
+            raise HTTPException(status_code=400, detail="Email already verified")
         user.is_verified = True
+
     elif action_type == TokenType.PASSWORD_RESET:
+        if not user.pending_password:
+            raise HTTPException(status_code=400, detail="No pending password reset")
         user.password_hash = user.pending_password
-        user.pending_password = None
+        user.pending_password = None  
+
     elif action_type == TokenType.EMAIL_CHANGE:
+        if not user.pending_email and not payload.get("new_email"):
+            raise HTTPException(status_code=400, detail="No pending email change")
         user.email = user.pending_email or payload.get("new_email")
-        user.pending_email = None
+        user.pending_email = None  
         user.is_verified = True
+
     elif action_type == TokenType.PHONE_CHANGE:
+        if not user.pending_phone and not payload.get("new_phone"):
+            raise HTTPException(status_code=400, detail="No pending phone change")
         user.phone_number = user.pending_phone or payload.get("new_phone")
-        user.pending_phone = None
+        user.pending_phone = None  
+
     else:
         raise HTTPException(status_code=400, detail="Unknown action type")
 
