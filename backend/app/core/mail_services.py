@@ -9,8 +9,11 @@ class MailService:
             email=sender_email,
         )
 
-    async def send_email(self, to_email: str, subject: str, html_content: str, to_name: str = "") -> bool:
+    async def send_email(self, to_email: str, subject: str, html_content: str, to_name: str = None) -> bool:
         try:
+            if not to_name:
+                to_name = "User"
+
             result = await self.client.transactional_emails.send_transac_email(
                 subject=subject,
                 html_content=html_content,
