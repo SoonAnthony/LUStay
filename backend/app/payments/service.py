@@ -39,7 +39,7 @@ async def initiate_payment(session: AsyncSession, booking_id: uuid.UUID, phone_n
 
 
 # 2. Handle Callback
-async def handle_callback(session: AsyncSession, payload: dict):
+async def handle_callback(session: AsyncSession, payload: dict) -> Payment:
     body = payload.get("Body", {})
     stk_callback = body.get("stkCallback", {})
 
@@ -47,30 +47,40 @@ async def handle_callback(session: AsyncSession, payload: dict):
     result_code = stk_callback.get("ResultCode")
     metadata = stk_callback.get("CallbackMetadata", {})
 
-    payment = await session.exec(select(Payment).where(Payment.checkout_request_id == checkout_id))
-    payment = payment.first()
+    # Find the payment by CheckoutRequestID
+    result = await session.exec(select(Payment).where(Payment.checkout_request_id == checkout_id))
+    payment = result.first()
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
 
     if result_code == 0:
+        # Payment successful
         payment.status = PaymentStatus.SUCCESS
         payment.transaction_ref = next(
-            (item["Value"] for item in metadata.get("Item", []) if item["Name"] == "MpesaReceiptNumber"), None
+            (item["Value"] for item in metadata.get("Item", []) if item["Name"] == "MpesaReceiptNumber"),
+            None
         )
 
         # Update booking and room
         booking = await session.get(Booking, payment.booking_id)
-        booking.status = BookingStatus.CONFIRMED
-        room = await session.get(Room, booking.room_id)
-        room.occupants = getattr(room, "occupants", 0) + 1
+        if booking:
+            booking.status = BookingStatus.CONFIRMED
+            room = await session.get(Room, booking.room_id)
+            if room:
+                room.occupants = getattr(room, "occupants", 0) + 1
+
+        session.add(payment)
+        session.add(booking)
+        if room:
+            session.add(room)
 
     else:
+        # Payment failed
         payment.status = PaymentStatus.FAILED
 
     await session.commit()
     await session.refresh(payment)
     return payment
-
 
 # 3. Request Refund (Landlord)
 async def request_refund(session: AsyncSession, payment_id: uuid.UUID, user_id: uuid.UUID, reason: str) -> Payment:
