@@ -1,11 +1,13 @@
 import uuid
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column, ForeignKey, DateTime, func
 from sqlalchemy.dialects.postgresql import UUID
 from app.user.models import User
 from app.rooms.models import Room
+if TYPE_CHECKING:
+    from app.payments.models import Payment
 
 
 class BookingStatus(str):
@@ -54,4 +56,4 @@ class Booking(SQLModel, table=True):
     # Relationships
     user: Optional[User] = Relationship()
     room: Optional[Room] = Relationship()
-    #payments: List["Payment"] = Relationship(back_populates="booking")
+    payments: List["Payment"] = Relationship(back_populates="booking")
