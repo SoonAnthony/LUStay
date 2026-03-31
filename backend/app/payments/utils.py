@@ -1,8 +1,8 @@
-import os
 import base64
 import httpx
 from datetime import datetime
 from app.core.config import settings
+
 
 # Environment variables
 CONSUMER_KEY = settings.MPESA_CONSUMER_KEY
