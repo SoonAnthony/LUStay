@@ -8,6 +8,7 @@ from app.hostels.image_router import image_router
 from app.core.cloudinary import cloudinary
 from app.rooms.router import room_landlord_router, room_admin_router, room_public_router
 from app.bookings.router import bookings_router
+from app.payments.router import payments_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -48,6 +49,7 @@ api_v1_router.include_router(room_public_router)
 
 #Bookings
 api_v1_router.include_router(bookings_router)
-
+#Payments
+api_v1_router.include_router(payments_router)
 # ✅ Register version router in app
 app.include_router(api_v1_router)
