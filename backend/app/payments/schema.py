@@ -46,4 +46,4 @@ class STKCallback(BaseModel):
 
 
 class STKCallbackBody(BaseModel):
-    Body: dict[str, STKCallback]
+    Body: STKCallback
