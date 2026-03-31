@@ -7,6 +7,7 @@ from app.hostels.router import hostel_router, admin_hostel_router, amenity_route
 from app.hostels.image_router import image_router
 from app.core.cloudinary import cloudinary
 from app.rooms.router import room_landlord_router, room_admin_router, room_public_router
+from app.bookings.router import bookings_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
