@@ -54,4 +54,4 @@ class Booking(SQLModel, table=True):
     # Relationships
     user: Optional[User] = Relationship()
     room: Optional[Room] = Relationship()
-    payments: List["Payment"] = Relationship(back_populates="booking")
+    #payments: List["Payment"] = Relationship(back_populates="booking")
