@@ -56,3 +56,10 @@ def get_booking_logic(session: Session, booking_id: uuid.UUID) -> Booking:
 
 def list_bookings_logic(session: Session) -> list[Booking]:
     return session.exec(select(Booking)).all()
+
+def cancel_booking_logic(session: Session, booking: Booking) -> Booking:
+    if booking.status == BookingStatus.CANCELLED:
+        raise ValueError("Booking is already cancelled")
+
+    booking.status = BookingStatus.CANCELLED
+    return booking
