@@ -1,16 +1,19 @@
 import uuid
-from sqlmodel import Session, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
 from app.bookings.models import Booking, BookingStatus
-from app.bookings.schema import BookingCreate, BookingRead, BookingUpdate
+from app.bookings.schema import BookingCreate, BookingUpdate
 from app.rooms.models import Room, RoomType
 
 
-def create_booking_logic(session: Session, user_id: uuid.UUID, booking_data: BookingCreate) -> Booking:
-    room = session.exec(select(Room).where(Room.id == booking_data.room_id)).first()
+async def create_booking_logic(session: AsyncSession, user_id: uuid.UUID, booking_data: BookingCreate) -> Booking:
+    result = await session.exec(select(Room).where(Room.id == booking_data.room_id))
+    room = result.first()
     if not room:
         raise ValueError("Room not found")
 
-    room_type = session.exec(select(RoomType).where(RoomType.id == room.room_type_id)).first()
+    result = await session.exec(select(RoomType).where(RoomType.id == room.room_type_id))
+    room_type = result.first()
     if not room_type:
         raise ValueError("Room type not found")
 
@@ -32,34 +35,31 @@ def create_booking_logic(session: Session, user_id: uuid.UUID, booking_data: Boo
         amount_paid=0,
         status=BookingStatus.PENDING,
     )
-
     return booking
 
-
-def update_booking_logic(session: Session, booking: Booking, update_data: BookingUpdate) -> Booking:
+async def update_booking_logic(session: AsyncSession, booking: Booking, update_data: BookingUpdate) -> Booking:
     if update_data.room_id is not None:
         booking.room_id = update_data.room_id
     if update_data.semester is not None:
         booking.semester = update_data.semester
     if update_data.status is not None:
         booking.status = update_data.status
-
     return booking
 
-
-def get_booking_logic(session: Session, booking_id: uuid.UUID) -> Booking:
-    booking = session.get(Booking, booking_id)
+async def get_booking_logic(session: AsyncSession, booking_id: uuid.UUID) -> Booking:
+    booking = await session.get(Booking, booking_id)
     if not booking:
         raise ValueError("Booking not found")
     return booking
 
 
-def list_bookings_logic(session: Session) -> list[Booking]:
-    return session.exec(select(Booking)).all()
+async def list_bookings_logic(session: AsyncSession) -> list[Booking]:
+    result = await session.exec(select(Booking))
+    return result.all()
 
-def cancel_booking_logic(session: Session, booking: Booking) -> Booking:
+
+async def cancel_booking_logic(session: AsyncSession, booking: Booking) -> Booking:
     if booking.status == BookingStatus.CANCELLED:
         raise ValueError("Booking is already cancelled")
-
     booking.status = BookingStatus.CANCELLED
     return booking
