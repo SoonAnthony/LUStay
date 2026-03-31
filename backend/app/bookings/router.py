@@ -16,6 +16,7 @@ from app.user.dependencies import (
     get_current_active_user,
     get_current_landlord_or_admin,
 )
+from app.payments.service import initiate_payment
 
 bookings_router = APIRouter(prefix="/api/v1/bookings", tags=["Bookings"])
 
@@ -31,6 +32,10 @@ async def create_booking(
         session.add(booking)
         await session.commit()
         await session.refresh(booking)
+        # Initiate payment after commit
+        # booking_data should include phone_number
+        await initiate_payment(session, booking.id, booking_data.phone_number)
+
         return BookingRead.model_validate(booking)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
