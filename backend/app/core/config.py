@@ -23,6 +23,15 @@ class Settings(BaseSettings):
     BREVO_API_KEY: str
     BREVO_SENDER_EMAIL: str
     BREVO_SENDER_NAME: str = "LUStay"
+    #MPESA configuration
+    MPESA_CONSUMER_KEY: str
+    MPESA_CONSUMER_SECRET: str
+    MPESA_SHORTCODE: str
+    MPESA_PASSKEY: str
+    MPESA_CALLBACK_URL: str
+    MPESA_ENV: str = "sandbox"
+
+
 
 
     @property
