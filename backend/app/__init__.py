@@ -46,5 +46,8 @@ api_v1_router.include_router(room_landlord_router)
 api_v1_router.include_router(room_admin_router) 
 api_v1_router.include_router(room_public_router)
 
+#Bookings
+api_v1_router.include_router(bookings_router)
+
 # ✅ Register version router in app
 app.include_router(api_v1_router)
