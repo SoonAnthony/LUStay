@@ -18,10 +18,10 @@ from app.user.dependencies import (
     get_current_landlord_or_admin,
 )
 
-router = APIRouter(prefix="/api/v1/bookings", tags=["Bookings"])
+bookings_router = APIRouter(prefix="/api/v1/bookings", tags=["Bookings"])
 
 
-@router.post("/", response_model=BookingRead, status_code=status.HTTP_201_CREATED)
+@bookings_router.post("/", response_model=BookingRead, status_code=status.HTTP_201_CREATED)
 async def create_booking(
     booking_data: BookingCreate,
     session: Session = Depends(get_session),
@@ -40,7 +40,7 @@ async def create_booking(
         )
 
 
-@router.get("/{booking_id}", response_model=BookingRead)
+@bookings_router.get("/{booking_id}", response_model=BookingRead)
 async def get_booking(
     booking_id: uuid.UUID,
     session: Session = Depends(get_session),
@@ -63,7 +63,7 @@ async def get_booking(
     return BookingRead.model_validate(booking)
 
 
-@router.get("/", response_model=list[BookingRead])
+@bookings_router.get("/", response_model=list[BookingRead])
 async def list_bookings(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_landlord_or_admin),
@@ -72,7 +72,7 @@ async def list_bookings(
     return [BookingRead.model_validate(b) for b in bookings]
 
 
-@router.patch("/{booking_id}", response_model=BookingRead)
+@bookings_router.patch("/{booking_id}", response_model=BookingRead)
 async def update_booking(
     booking_id: uuid.UUID,
     update_data: BookingUpdate,
@@ -94,7 +94,8 @@ async def update_booking(
     return BookingRead.model_validate(booking)
 
 
-@router.patch("/{booking_id}/cancel", response_model=BookingRead)
+
+@bookings_router.patch("/{booking_id}/cancel", response_model=BookingRead)
 async def cancel_booking(
     booking_id: uuid.UUID,
     session: Session = Depends(get_session),
