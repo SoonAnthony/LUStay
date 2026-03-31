@@ -2,14 +2,16 @@ import os
 import base64
 import httpx
 from datetime import datetime
+from app.core.config import settings
 
 # Environment variables
-CONSUMER_KEY = os.getenv("MPESA_CONSUMER_KEY")
-CONSUMER_SECRET = os.getenv("MPESA_CONSUMER_SECRET")
-SHORTCODE = os.getenv("MPESA_SHORTCODE", "174379")
-PASSKEY = os.getenv("MPESA_PASSKEY")
-CALLBACK_URL = os.getenv("MPESA_CALLBACK_URL")
-ENV = os.getenv("MPESA_ENV", "sandbox")
+CONSUMER_KEY = settings.MPESA_CONSUMER_KEY
+CONSUMER_SECRET = settings.MPESA_CONSUMER_SECRET
+SHORTCODE = settings.MPESA_SHORTCODE
+PASSKEY = settings.MPESA_PASSKEY
+CALLBACK_URL = settings.MPESA_CALLBACK_URL
+ENV = settings.MPESA_ENV
+
 
 BASE_URL = "https://sandbox.safaricom.co.ke" if ENV == "sandbox" else "https://api.safaricom.co.ke"
 
