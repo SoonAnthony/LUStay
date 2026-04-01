@@ -6,6 +6,7 @@ class BookingCreate(BaseModel):
     room_id: uuid.UUID
     semester: str
     is_shared: bool
+    phone_number: str 
 
 class BookingUpdate(BaseModel):
     room_id: uuid.UUID | None = None
