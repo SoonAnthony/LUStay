@@ -17,7 +17,7 @@ async def initiate_payment(session: AsyncSession, booking_id: uuid.UUID, phone_n
         raise HTTPException(status_code=404, detail="Booking not found")
 
     # Calculate deposit (20% of total price)
-    amount = int(booking.total_price * 0.2)
+    amount = 1 #int(booking.total_price * 0.2)
 
     payment = Payment(
         booking_id=booking_id,
