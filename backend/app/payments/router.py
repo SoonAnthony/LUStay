@@ -39,9 +39,12 @@ async def initiate(
 
 @payments_router.post("/callback")
 async def callback(
-    payload: STKCallbackBody,   
+    payload: STKCallbackBody, 
+    request: Request,
     session: AsyncSession = Depends(get_session),
 ):
+    data = await request.json()
+    print("RAW MPESA CALLBACK:", data)
     payment = await handle_callback(session, payload.dict())
 
     return {"status": "ok", "payment_id": str(payment.id)}
