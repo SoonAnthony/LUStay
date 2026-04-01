@@ -67,15 +67,16 @@ async def handle_callback(session: AsyncSession, payload: dict) -> Payment:
             booking.status = BookingStatus.CONFIRMED
             room = await session.get(Room, booking.room_id)
             if room:
-                room.occupants = getattr(room, "occupants", 0) + 1
-
-                if room.is_shared:
+                if booking.is_shared:
+                    # Shared booking: increment until capacity (2)
+                    room.occupants = min(room.occupants + 1, 2)
                     if room.occupants == 1:
                         room.status = RoomStatus.PARTIALLY_OCCUPIED
-                    elif room.occupants >= 2:
+                    elif room.occupants == 2:
                         room.status = RoomStatus.FULLY_OCCUPIED
                 else:
-                    # Non-shared room: one occupant = fully occupied
+                    # Non-shared booking: student takes the whole room
+                    room.occupants = 2
                     room.status = RoomStatus.FULLY_OCCUPIED
 
         session.add(payment)
@@ -90,7 +91,6 @@ async def handle_callback(session: AsyncSession, payload: dict) -> Payment:
     await session.commit()
     await session.refresh(payment)
     return payment
-
 # 3. Request Refund (Landlord)
 async def request_refund(session: AsyncSession, payment_id: uuid.UUID, user_id: uuid.UUID, reason: str) -> Payment:
     payment = await session.get(Payment, payment_id)
