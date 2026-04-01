@@ -2,7 +2,9 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.engine import get_session
-
+from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
+from app.bookings.models import Booking
 from app.bookings.schema import BookingCreate, BookingRead, BookingUpdate
 from app.bookings.service import (
     create_booking_logic,
@@ -35,8 +37,13 @@ async def create_booking(
         # Initiate payment after commit
         # booking_data should include phone_number
         await initiate_payment(session, booking.id, booking_data.phone_number)
-
-        return BookingRead.model_validate(booking)
+        result = await session.execute(
+            select(Booking)
+            .options(selectinload(Booking.room), selectinload(Booking.user))
+            .where(Booking.id == booking.id)
+        )
+        booking_loaded = result.scalar_one()
+        return BookingRead.model_validate(booking_loaded)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
