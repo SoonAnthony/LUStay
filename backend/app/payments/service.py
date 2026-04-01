@@ -5,7 +5,7 @@ from sqlmodel import select
 from fastapi import HTTPException
 
 from app.bookings.models import Booking, BookingStatus
-from app.rooms.models import Room
+from app.rooms.models import Room,  RoomStatus
 from app.payments.models import Payment, PaymentStatus
 from app.payments.utils import stk_push, reverse_transaction
 
@@ -68,6 +68,15 @@ async def handle_callback(session: AsyncSession, payload: dict) -> Payment:
             room = await session.get(Room, booking.room_id)
             if room:
                 room.occupants = getattr(room, "occupants", 0) + 1
+
+                if room.is_shared:
+                    if room.occupants == 1:
+                        room.status = RoomStatus.PARTIALLY_OCCUPIED
+                    elif room.occupants >= 2:
+                        room.status = RoomStatus.FULLY_OCCUPIED
+                else:
+                    # Non-shared room: one occupant = fully occupied
+                    room.status = RoomStatus.FULLY_OCCUPIED
 
         session.add(payment)
         session.add(booking)
