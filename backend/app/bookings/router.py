@@ -34,18 +34,23 @@ async def create_booking(
         session.add(booking)
         await session.commit()
         await session.refresh(booking)
+        booking_id = booking.id
         # Initiate payment after commit
         # booking_data should include phone_number
         await initiate_payment(session, booking.id, booking_data.phone_number)
         result = await session.execute(
             select(Booking)
             .options(selectinload(Booking.room), selectinload(Booking.user))
-            .where(Booking.id == booking.id)
+            .where(Booking.id == booking_id)
         )
         booking_loaded = result.scalar_one()
+
+        # 5. Return the booking mapped into your response schema
         return BookingRead.model_validate(booking_loaded)
+
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
 
 
 @bookings_router.get("/{booking_id}", response_model=BookingRead)
