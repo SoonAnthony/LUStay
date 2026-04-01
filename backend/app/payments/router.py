@@ -39,11 +39,13 @@ async def initiate(
 
 @payments_router.post("/callback")
 async def callback(
-    payload: STKCallbackBody,  
+    payload: STKCallbackBody,   
     session: AsyncSession = Depends(get_session),
 ):
     payment = await handle_callback(session, payload.dict())
+
     return {"status": "ok", "payment_id": str(payment.id)}
+
 
 
 
