@@ -24,8 +24,7 @@ from app.payments.service import initiate_payment_logic
 bookings_router = APIRouter(prefix="/bookings", tags=["Bookings"])
 
 
-# Reservation endpoints
-@bookings_router.post("/reservations", response_model=ReservationRead, status_code=status.HTTP_201_CREATED)
+# R@bookings_router.post("/reservations", response_model=ReservationRead, status_code=status.HTTP_201_CREATED)
 async def create_reservation(
     request: ReservationCreate,
     session: AsyncSession = Depends(get_session),
@@ -45,10 +44,11 @@ async def create_reservation(
         await session.commit()
         await session.refresh(reservation)
 
-        # Step 2: initiate payment and attach checkout ID
-        checkout_id = await initiate_payment_logic(session, reservation.id, request.phone_number)
-        reservation.mpesa_checkout_request_id = checkout_id
-        session.add(reservation)
+        # Step 2: initiate payment (pure logic)
+        payment, reservation = await initiate_payment_logic(reservation, request.phone_number)
+
+        # Commit here in the route
+        session.add_all([payment, reservation])
         await session.commit()
         await session.refresh(reservation)
 
