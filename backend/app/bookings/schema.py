@@ -27,6 +27,7 @@ class BookingRead(BaseModel):
     amount_paid: int
     status: str
     created_at: datetime
+    mpesa_checkout_request_id: str | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
