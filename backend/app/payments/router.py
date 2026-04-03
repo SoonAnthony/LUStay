@@ -58,21 +58,28 @@ async def callback(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
+    # Log the raw incoming JSON for debugging
     data = await request.json()
     print("RAW MPESA CALLBACK:", data)
+    body = payload.dict().get("Body", {})
+    stk_callback = body.get("stkCallback", {})
+    checkout_id = stk_callback.get("CheckoutRequestID")
 
-    checkout_id = payload.Body["stkCallback"]["CheckoutRequestID"]
-
-    # Find payment and reservation
-    result = await session.exec(select(Payment).where(Payment.checkout_request_id == checkout_id))
+    # Find payment and reservation using checkout_id
+    result = await session.exec(
+        select(Payment).where(Payment.checkout_request_id == checkout_id)
+    )
     payment = result.first()
-    result = await session.exec(select(Reservation).where(Reservation.mpesa_checkout_request_id == checkout_id))
+
+    result = await session.exec(
+        select(Reservation).where(Reservation.mpesa_checkout_request_id == checkout_id)
+    )
     reservation = result.first()
 
-    # Run pure logic
-    payment, booking, updated_reservation = await handle_callback_logic(payload.dict(), payment, reservation)
+    payment, booking, updated_reservation = await handle_callback_logic(
+        payload.dict(), payment, reservation
+    )
 
-    # Commit here
     objects = [payment]
     if booking:
         objects.append(booking)
