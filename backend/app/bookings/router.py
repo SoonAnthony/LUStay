@@ -20,7 +20,7 @@ from app.user.models import User
 from app.user.dependencies import get_current_active_user, get_current_landlord_or_admin
 from app.payments.service import initiate_payment
 
-bookings_router = APIRouter(prefix="/api/v1/bookings", tags=["Bookings"])
+bookings_router = APIRouter(prefix="/bookings", tags=["Bookings"])
 
 
 # Reservation endpoints
