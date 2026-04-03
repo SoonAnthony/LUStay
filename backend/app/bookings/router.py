@@ -6,7 +6,7 @@ from sqlalchemy.orm import joinedload
 
 from app.db.engine import get_session
 from app.bookings.models import Booking
-from app.bookings.schema import BookingRead, BookingUpdate, ReservationRead
+from app.bookings.schema import BookingRead, BookingUpdate, ReservationCreate, ReservationRead
 from app.bookings.service import (
     create_reservation_logic,
     get_booking_logic,
@@ -18,7 +18,8 @@ from app.rooms.models import Room
 from app.hostels.models import Hostel
 from app.user.models import User
 from app.user.dependencies import get_current_active_user, get_current_landlord_or_admin
-from app.payments.service import initiate_payment
+from app.payments.service import initiate_payment_logic
+
 
 bookings_router = APIRouter(prefix="/bookings", tags=["Bookings"])
 
@@ -26,26 +27,34 @@ bookings_router = APIRouter(prefix="/bookings", tags=["Bookings"])
 # Reservation endpoints
 @bookings_router.post("/reservations", response_model=ReservationRead, status_code=status.HTTP_201_CREATED)
 async def create_reservation(
-    room_id: uuid.UUID,
-    semester: str,
-    is_shared: bool,
-    phone_number: str,
+    request: ReservationCreate,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_active_user),
 ):
     """Create a reservation and initiate M-Pesa payment."""
     try:
-        reservation = await create_reservation_logic(session, current_user.id, room_id, semester, is_shared)
+        # Step 1: create reservation
+        reservation = await create_reservation_logic(
+            session,
+            current_user.id,
+            request.room_id,
+            request.semester,
+            request.is_shared,
+        )
         session.add(reservation)
         await session.commit()
         await session.refresh(reservation)
 
-        # Initiate M-Pesa payment
-        await initiate_payment(session, reservation.id, phone_number)
-        return reservation
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        # Step 2: initiate payment and attach checkout ID
+        checkout_id = await initiate_payment_logic(session, reservation.id, request.phone_number)
+        reservation.mpesa_checkout_request_id = checkout_id
+        session.add(reservation)
+        await session.commit()
+        await session.refresh(reservation)
 
+        return ReservationRead.model_validate(reservation)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 # Booking endpoints
 @bookings_router.get("/{booking_id}", response_model=BookingRead)
