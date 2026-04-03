@@ -66,23 +66,12 @@ async def handle_callback_logic(payload: dict, payment: Payment, reservation: Re
         return payment, None, None
 
 # 2. Handle Callback
-async def handle_callback(session: AsyncSession, payload: dict) -> Payment:
+async def handle_callback_logic(payload: dict, payment: Payment, reservation: Reservation | None):
     body = payload.get("Body", {})
     stk_callback = body.get("stkCallback", {})
 
-    checkout_id = stk_callback.get("CheckoutRequestID")
     result_code = stk_callback.get("ResultCode")
     metadata = stk_callback.get("CallbackMetadata", {})
-
-    # Find the payment by CheckoutRequestID
-    result = await session.exec(select(Payment).where(Payment.checkout_request_id == checkout_id))
-    payment = result.first()
-    if not payment:
-        raise HTTPException(status_code=404, detail="Payment not found")
-
-    # Find reservation by CheckoutRequestID
-    result = await session.exec(select(Reservation).where(Reservation.mpesa_checkout_request_id == checkout_id))
-    reservation = result.first()
 
     if result_code == 0:  # Payment successful
         payment.status = PaymentStatus.SUCCESS
@@ -92,32 +81,25 @@ async def handle_callback(session: AsyncSession, payload: dict) -> Payment:
         )
 
         if reservation:
-            booking, updated_reservation = await convert_reservation_to_booking_logic(session, reservation, payment.amount)
+            booking, updated_reservation = await convert_reservation_to_booking_logic(None, reservation, payment.amount)
             if booking:
                 payment.booking_id = booking.id
-                session.add_all([payment, booking, updated_reservation])
+                return payment, booking, updated_reservation
             else:
-                # Reservation expired before payment confirmation
-                session.add(reservation)
-        else:
-            session.add(payment)
+                reservation.status = ReservationStatus.EXPIRED
+                return payment, None, reservation
+        return payment, None, None
 
-    else:
-        # Payment failed
+    else:  # Payment failed
         payment.status = PaymentStatus.FAILED
         if reservation:
             reservation.status = ReservationStatus.EXPIRED
-            session.add(reservation)
-        session.add(payment)
-
-    await session.commit()
-    await session.refresh(payment)
-    return payment
+            return payment, None, reservation
+        return payment, None, None
 
 
-# 3. Request Refund (Landlord)
-async def request_refund(session: AsyncSession, payment_id: uuid.UUID, user_id: uuid.UUID, reason: str) -> Payment:
-    payment = await session.get(Payment, payment_id)
+# 3. Request Refund (Landlord) — pure logic
+async def request_refund_logic(payment: Payment, user_id: uuid.UUID, reason: str) -> Payment:
     if not payment or payment.status != PaymentStatus.SUCCESS:
         raise HTTPException(status_code=400, detail="Refund not allowed")
 
@@ -125,37 +107,31 @@ async def request_refund(session: AsyncSession, payment_id: uuid.UUID, user_id: 
     payment.refund_requested_by = user_id
     payment.refund_reason = reason
 
-    await session.commit()
-    await session.refresh(payment)
     return payment
 
 
-# 4. Process Refund (Admin)
-async def process_refund(session: AsyncSession, payment_id: uuid.UUID, admin_id: uuid.UUID, approve: bool) -> Payment:
-    payment = await session.get(Payment, payment_id)
+# 4. Process Refund (Admin) — pure logic
+async def process_refund_logic(payment: Payment, admin_id: uuid.UUID, approve: bool) -> tuple[Payment, Booking | None, Room | None]:
     if not payment or payment.status != PaymentStatus.REFUND_REQUESTED:
         raise HTTPException(status_code=400, detail="Refund not allowed")
+
+    booking = None
+    room = None
 
     if not approve:
         payment.status = PaymentStatus.REFUND_REJECTED
     else:
         # Call Daraja Reversal API (sandbox simulation)
-        response = await reverse_transaction(payment.transaction_ref, payment.amount, payment.phone_number)
+        await reverse_transaction(payment.transaction_ref, payment.amount, payment.phone_number)
 
         payment.status = PaymentStatus.REFUNDED
         payment.refund_approved_by = admin_id
         payment.refunded_at = datetime.utcnow()
 
         # Reverse booking effects
-        booking = await session.get(Booking, payment.booking_id)
+        booking = payment.booking_id and Booking(id=payment.booking_id, status=BookingStatus.CANCELLED)
         if booking:
-            booking.status = BookingStatus.CANCELLED
-            room = await session.get(Room, booking.room_id)
-            if room:
-                room.occupants = max(getattr(room, "occupants", 1) - 1, 0)
-                session.add(room)
+            room = Room(id=booking.room_id)
+            room.occupants = max(getattr(room, "occupants", 1) - 1, 0)
 
-    session.add(payment)
-    await session.commit()
-    await session.refresh(payment)
-    return payment
+    return payment, booking, room
