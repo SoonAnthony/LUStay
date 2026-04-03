@@ -33,8 +33,12 @@ async def initiate_payment_logic(reservation: Reservation, phone_number: str) ->
 
     return payment, reservation
 
-
-async def handle_callback_logic(payload: dict, payment: Payment, reservation: Reservation | None) -> tuple[Payment, Booking | None, Reservation | None]:
+async def handle_callback_logic(
+    payload: dict,
+    payment: Payment,
+    reservation: Reservation | None,
+    session: AsyncSession, 
+) -> tuple[Payment, Booking | None, Reservation | None]:
     body = payload.get("Body", {})
     stk_callback = body.get("stkCallback", {})
 
@@ -49,7 +53,9 @@ async def handle_callback_logic(payload: dict, payment: Payment, reservation: Re
         )
 
         if reservation:
-            booking, updated_reservation = await convert_reservation_to_booking_logic(payment.session, reservation, payment.amount)
+            booking, updated_reservation = await convert_reservation_to_booking_logic(
+                session, reservation, payment.amount
+            )
             if booking:
                 payment.booking_id = booking.id
                 return payment, booking, updated_reservation
@@ -64,39 +70,6 @@ async def handle_callback_logic(payload: dict, payment: Payment, reservation: Re
             reservation.status = ReservationStatus.EXPIRED
             return payment, None, reservation
         return payment, None, None
-
-# 2. Handle Callback
-async def handle_callback_logic(payload: dict, payment: Payment, reservation: Reservation | None):
-    body = payload.get("Body", {})
-    stk_callback = body.get("stkCallback", {})
-
-    result_code = stk_callback.get("ResultCode")
-    metadata = stk_callback.get("CallbackMetadata", {})
-
-    if result_code == 0:  # Payment successful
-        payment.status = PaymentStatus.SUCCESS
-        payment.transaction_ref = next(
-            (item["Value"] for item in metadata.get("Item", []) if item["Name"] == "MpesaReceiptNumber"),
-            None
-        )
-
-        if reservation:
-            booking, updated_reservation = await convert_reservation_to_booking_logic(None, reservation, payment.amount)
-            if booking:
-                payment.booking_id = booking.id
-                return payment, booking, updated_reservation
-            else:
-                reservation.status = ReservationStatus.EXPIRED
-                return payment, None, reservation
-        return payment, None, None
-
-    else:  # Payment failed
-        payment.status = PaymentStatus.FAILED
-        if reservation:
-            reservation.status = ReservationStatus.EXPIRED
-            return payment, None, reservation
-        return payment, None, None
-
 
 # 3. Request Refund (Landlord) — pure logic
 async def request_refund_logic(payment: Payment, user_id: uuid.UUID, reason: str) -> Payment:
