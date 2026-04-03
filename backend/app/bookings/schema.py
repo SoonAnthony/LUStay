@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
-class BookingCreate(BaseModel):
+class ReservationCreate(BaseModel):
     room_id: uuid.UUID
     semester: str
     is_shared: bool
@@ -27,4 +27,17 @@ class BookingRead(BaseModel):
     amount_paid: int
     status: str
     created_at: datetime
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ReservationRead(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    room_id: uuid.UUID
+    semester: str
+    is_shared: bool
+    status: str
+    expires_at: datetime
+    created_at: datetime
+
     model_config = ConfigDict(from_attributes=True)
