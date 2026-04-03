@@ -3,17 +3,14 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from app.bookings.models import Reservation, ReservationStatus
-from app.bookings.models import Booking, BookingStatus
+from app.bookings.models import Reservation, ReservationStatus, Booking, BookingStatus
+from app.bookings.schema import BookingUpdate
 from app.rooms.models import Room, RoomType
 
-# How long a reservation holds a slot while awaiting M-Pesa callback
 RESERVATION_TTL_SECONDS = 180  # 3 minutes
 
-
-async def _get_room_and_type(
-    session: AsyncSession, room_id: uuid.UUID
-) -> tuple[Room, RoomType]:
+# Helpers
+async def _get_room_and_type(session: AsyncSession, room_id: uuid.UUID) -> tuple[Room, RoomType]:
     result = await session.exec(select(Room).where(Room.id == room_id))
     room = result.first()
     if not room:
@@ -28,7 +25,6 @@ async def _get_room_and_type(
 
 
 async def _expire_stale_reservations(session: AsyncSession, room_id: uuid.UUID) -> None:
-    """Mark any expired ACTIVE reservations as EXPIRED so slots are released."""
     now = datetime.now(timezone.utc)
     result = await session.exec(
         select(Reservation).where(
@@ -37,85 +33,51 @@ async def _expire_stale_reservations(session: AsyncSession, room_id: uuid.UUID) 
             Reservation.expires_at <= now,
         )
     )
-    stale = result.all()
-    for r in stale:
+    for r in result.all():
         r.status = ReservationStatus.EXPIRED
         session.add(r)
 
 
 async def _count_active_slots(session: AsyncSession, room_id: uuid.UUID) -> int:
-    """
-    Count slots currently occupied by:
-      - ACTIVE reservations (within TTL)
-      - CONFIRMED bookings
-    PENDING bookings no longer exist in this flow.
-    """
     now = datetime.now(timezone.utc)
 
-    active_reservations_result = await session.exec(
+    reservations = await session.exec(
         select(Reservation).where(
             Reservation.room_id == room_id,
             Reservation.status == ReservationStatus.ACTIVE,
             Reservation.expires_at > now,
         )
     )
-    reservation_count = len(active_reservations_result.all())
-
-    confirmed_bookings_result = await session.exec(
+    bookings = await session.exec(
         select(Booking).where(
             Booking.room_id == room_id,
             Booking.status == BookingStatus.CONFIRMED,
         )
     )
-    booking_count = len(confirmed_bookings_result.all())
+    return len(reservations.all()) + len(bookings.all())
 
-    return reservation_count + booking_count
-
-
-async def create_reservation(
-    session: AsyncSession,
-    user_id: uuid.UUID,
-    room_id: uuid.UUID,
-    semester: str,
-    is_shared: bool,
-) -> Reservation:
-    """
-    Reserve a slot for up to RESERVATION_TTL_SECONDS.
-    Raises ValueError if room is at capacity or student already has
-    an active reservation for this room.
-    Call this BEFORE initiating the M-Pesa STK push.
-    """
+# Reservation 
+async def create_reservation_logic(session: AsyncSession, user_id: uuid.UUID, room_id: uuid.UUID, semester: str, is_shared: bool) -> Reservation:
     room, room_type = await _get_room_and_type(session, room_id)
-
-    # Clean up expired reservations first so slots are accurate
     await _expire_stale_reservations(session, room_id)
 
-    # Prevent a student from holding multiple slots on the same room
-    existing_result = await session.exec(
+    existing = await session.exec(
         select(Reservation).where(
             Reservation.user_id == user_id,
             Reservation.room_id == room_id,
             Reservation.status == ReservationStatus.ACTIVE,
         )
     )
-    if existing_result.first():
-        raise ValueError(
-            "You already have an active reservation for this room. "
-            "Complete or cancel it before reserving again."
-        )
+    if existing.first():
+        raise ValueError("You already have an active reservation for this room.")
 
     active_slots = await _count_active_slots(session, room_id)
     capacity = room_type.capacity if is_shared else 1
-
     if active_slots >= capacity:
-        raise ValueError(
-            f"Room is fully reserved or occupied "
-            f"({'shared capacity: ' + str(room_type.capacity) if is_shared else 'solo room taken'})."
-        )
+        raise ValueError("Room is fully reserved or occupied.")
 
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=RESERVATION_TTL_SECONDS)
-
-    reservation = Reservation(
+    return Reservation(
         user_id=user_id,
         room_id=room_id,
         semester=semester,
@@ -123,62 +85,21 @@ async def create_reservation(
         expires_at=expires_at,
         status=ReservationStatus.ACTIVE,
     )
-    session.add(reservation)
-    await session.commit()
-    await session.refresh(reservation)
-    return reservation
 
 
-async def attach_mpesa_checkout_id(
-    session: AsyncSession,
-    reservation: Reservation,
-    checkout_request_id: str,
-) -> Reservation:
-    """
-    After the STK push succeeds, store M-Pesa's CheckoutRequestID
-    so the callback handler can look up the reservation.
-    """
+async def attach_mpesa_checkout_id_logic(reservation: Reservation, checkout_request_id: str) -> Reservation:
     reservation.mpesa_checkout_request_id = checkout_request_id
-    session.add(reservation)
-    await session.commit()
-    await session.refresh(reservation)
     return reservation
 
 
-async def convert_reservation_to_booking(
-    session: AsyncSession,
-    reservation: Reservation,
-    amount_paid: int,
-) -> Booking:
-    """
-    Called by the M-Pesa callback handler on successful payment.
-    Creates the real Booking and marks the reservation as CONVERTED.
-    Raises ValueError if the reservation has expired.
-    """
+async def convert_reservation_to_booking_logic(session: AsyncSession, reservation: Reservation, amount_paid: int) -> Booking:
     now = datetime.now(timezone.utc)
-
-    if reservation.status != ReservationStatus.ACTIVE:
-        raise ValueError(
-            f"Reservation is no longer active (status: {reservation.status}). "
-            "Student must start a new reservation."
-        )
-
-    if reservation.expires_at <= now:
+    if reservation.status != ReservationStatus.ACTIVE or reservation.expires_at <= now:
         reservation.status = ReservationStatus.EXPIRED
-        session.add(reservation)
-        await session.commit()
-        raise ValueError(
-            "Reservation expired before payment was confirmed. "
-            "Please try booking again."
-        )
+        return reservation
 
     room, room_type = await _get_room_and_type(session, reservation.room_id)
-
-    total_price = (
-        room_type.price_double // room_type.capacity
-        if reservation.is_shared
-        else room_type.price_single
-    )
+    total_price = (room_type.price_double // room_type.capacity) if reservation.is_shared else room_type.price_single
     deposit_amount = int(total_price * 0.2)
 
     booking = Booking(
@@ -191,24 +112,58 @@ async def convert_reservation_to_booking(
         amount_paid=amount_paid,
         status=BookingStatus.CONFIRMED,
     )
-    session.add(booking)
-
     reservation.status = ReservationStatus.CONVERTED
-    session.add(reservation)
-
-    await session.commit()
-    await session.refresh(booking)
-    return booking
+    return booking, reservation
 
 
-async def expire_reservation(
-    session: AsyncSession, reservation: Reservation
-) -> Reservation:
-    """Manually expire a reservation (e.g. student cancels or payment fails)."""
+async def expire_reservation_logic(reservation: Reservation) -> Reservation:
     if reservation.status != ReservationStatus.ACTIVE:
         raise ValueError(f"Reservation is already {reservation.status}.")
     reservation.status = ReservationStatus.EXPIRED
-    session.add(reservation)
-    await session.commit()
-    await session.refresh(reservation)
     return reservation
+
+# Booking lifecycle
+async def get_booking_logic(session: AsyncSession, booking_id: uuid.UUID) -> Booking:
+    booking = await session.get(Booking, booking_id)
+    if not booking:
+        raise ValueError("Booking not found")
+    return booking
+
+
+async def list_bookings_logic(session: AsyncSession) -> list[Booking]:
+    result = await session.exec(select(Booking))
+    return result.all()
+
+
+async def list_bookings_by_user_logic(session: AsyncSession, user_id: uuid.UUID) -> list[Booking]:
+    result = await session.exec(select(Booking).where(Booking.user_id == user_id))
+    return result.all()
+
+
+async def update_booking_logic(booking: Booking, update_data: BookingUpdate) -> Booking:
+    if update_data.room_id is not None:
+        booking.room_id = update_data.room_id
+    if update_data.semester is not None:
+        booking.semester = update_data.semester
+    if update_data.status is not None:
+        booking.status = update_data.status
+    return booking
+
+
+async def record_balance_payment_logic(booking: Booking, amount: int) -> Booking:
+    if booking.status == BookingStatus.CANCELLED:
+        raise ValueError("Cannot pay for a cancelled booking.")
+    if booking.status == BookingStatus.ACTIVE:
+        raise ValueError("Booking is already fully paid.")
+
+    booking.amount_paid += amount
+    if booking.amount_paid >= booking.total_price:
+        booking.status = BookingStatus.ACTIVE
+    return booking
+
+
+async def cancel_booking_logic(booking: Booking) -> Booking:
+    if booking.status == BookingStatus.CANCELLED:
+        raise ValueError("Booking is already cancelled.")
+    booking.status = BookingStatus.CANCELLED
+    return booking
