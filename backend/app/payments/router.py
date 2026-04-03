@@ -11,13 +11,14 @@ from app.payments.schema import (
     STKCallbackBody,
 )
 from app.payments.service import (
-    initiate_payment,
+    initiate_payment_logic,
     handle_callback_logic,
-    request_refund,
-    process_refund,
+    request_refund_logic,
+    process_refund_logic,
 )
 from app.payments.models import Payment
-from app.bookings.models import Reservation
+from app.bookings.models import Reservation, Booking
+from app.rooms.models import Room
 from app.user.dependencies import (
     get_current_active_user,
     get_current_landlord_or_admin,
@@ -35,7 +36,19 @@ async def initiate(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_active_user),
 ):
-    payment = await initiate_payment(session, data.booking_id, data.phone_number)
+    # Find reservation
+    reservation = await session.get(Reservation, data.booking_id)
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+
+    # Run pure logic
+    payment, reservation = await initiate_payment_logic(reservation, data.phone_number)
+
+    # Commit here
+    session.add_all([payment, reservation])
+    await session.commit()
+    await session.refresh(payment)
+
     return payment
 
 
@@ -48,16 +61,18 @@ async def callback(
     data = await request.json()
     print("RAW MPESA CALLBACK:", data)
 
-    # Find payment and reservation by checkout ID
     checkout_id = payload.Body["stkCallback"]["CheckoutRequestID"]
 
+    # Find payment and reservation
     result = await session.exec(select(Payment).where(Payment.checkout_request_id == checkout_id))
     payment = result.first()
     result = await session.exec(select(Reservation).where(Reservation.mpesa_checkout_request_id == checkout_id))
     reservation = result.first()
 
+    # Run pure logic
     payment, booking, updated_reservation = await handle_callback_logic(payload.dict(), payment, reservation)
 
+    # Commit here
     objects = [payment]
     if booking:
         objects.append(booking)
@@ -78,7 +93,18 @@ async def refund_request(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_landlord_or_admin),
 ):
-    payment = await request_refund(session, payment_id, current_user.id, data.reason)
+    payment = await session.get(Payment, uuid.UUID(payment_id))
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+    # Run pure logic
+    payment = await request_refund_logic(payment, current_user.id, data.reason)
+
+    # Commit here
+    session.add(payment)
+    await session.commit()
+    await session.refresh(payment)
+
     return payment
 
 
@@ -89,5 +115,22 @@ async def refund_process(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_admin),
 ):
-    payment = await process_refund(session, payment_id, current_user.id, data.approve)
+    payment = await session.get(Payment, uuid.UUID(payment_id))
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+    # Run pure logic
+    payment, booking, room = await process_refund_logic(payment, current_user.id, data.approve)
+
+    # Commit here
+    objects = [payment]
+    if booking:
+        objects.append(booking)
+    if room:
+        objects.append(room)
+
+    session.add_all(objects)
+    await session.commit()
+    await session.refresh(payment)
+
     return payment
