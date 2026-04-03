@@ -24,7 +24,7 @@ from app.payments.service import initiate_payment_logic
 bookings_router = APIRouter(prefix="/bookings", tags=["Bookings"])
 
 
-# R@bookings_router.post("/reservations", response_model=ReservationRead, status_code=status.HTTP_201_CREATED)
+@bookings_router.post("/reservations", response_model=ReservationRead, status_code=status.HTTP_201_CREATED)
 async def create_reservation(
     request: ReservationCreate,
     session: AsyncSession = Depends(get_session),
