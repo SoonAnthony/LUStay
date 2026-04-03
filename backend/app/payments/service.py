@@ -4,39 +4,66 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 from fastapi import HTTPException
 
-from app.bookings.models import Booking, BookingStatus
-from app.rooms.models import Room,  RoomStatus
+from app.bookings.models import Reservation, ReservationStatus, Booking, BookingStatus
+from app.bookings.service import convert_reservation_to_booking_logic
+from app.rooms.models import Room, RoomStatus
 from app.payments.models import Payment, PaymentStatus
 from app.payments.utils import stk_push, reverse_transaction
 
 
 # 1. Initiate Payment
-async def initiate_payment(session: AsyncSession, booking_id: uuid.UUID, phone_number: str) -> Payment:
-    booking = await session.get(Booking, booking_id)
-    if not booking:
-        raise HTTPException(status_code=404, detail="Booking not found")
-
-    # Calculate deposit (20% of total price)
-    amount = 1 #int(booking.total_price * 0.2)
+async def initiate_payment_logic(reservation: Reservation, phone_number: str) -> Payment:
+    # Calculate deposit (20% of total price) or use a fixed test amount
+    amount = 1  # int(room_type.price_single * 0.2)
 
     payment = Payment(
-        booking_id=booking_id,
+        booking_id=None,
         amount=amount,
         phone_number=phone_number,
         status=PaymentStatus.PENDING,
     )
-    session.add(payment)
-    await session.commit()
-    await session.refresh(payment)
 
     # Call Daraja STK Push
-    response = await stk_push(phone_number, amount, str(booking_id))
-    payment.checkout_request_id = response.get("CheckoutRequestID")
+    response = await stk_push(phone_number, amount, str(reservation.id))
+    checkout_id = response.get("CheckoutRequestID")
 
-    await session.commit()
-    await session.refresh(payment)
-    return payment
+    # Attach checkout ID to both payment and reservation
+    payment.checkout_request_id = checkout_id
+    reservation.mpesa_checkout_request_id = checkout_id
 
+    return payment, reservation
+
+
+async def handle_callback_logic(payload: dict, payment: Payment, reservation: Reservation | None) -> tuple[Payment, Booking | None, Reservation | None]:
+    body = payload.get("Body", {})
+    stk_callback = body.get("stkCallback", {})
+
+    result_code = stk_callback.get("ResultCode")
+    metadata = stk_callback.get("CallbackMetadata", {})
+
+    if result_code == 0:  # success
+        payment.status = PaymentStatus.SUCCESS
+        payment.transaction_ref = next(
+            (item["Value"] for item in metadata.get("Item", []) if item["Name"] == "MpesaReceiptNumber"),
+            None
+        )
+
+        if reservation:
+            booking, updated_reservation = await convert_reservation_to_booking_logic(payment.session, reservation, payment.amount)
+            if booking:
+                payment.booking_id = booking.id
+                return payment, booking, updated_reservation
+            else:
+                reservation.status = ReservationStatus.EXPIRED
+                return payment, None, reservation
+        return payment, None, None
+
+    else:  # failure
+        payment.status = PaymentStatus.FAILED
+        if reservation:
+            reservation.status = ReservationStatus.EXPIRED
+            return payment, None, reservation
+        return payment, None, None
 
 # 2. Handle Callback
 async def handle_callback(session: AsyncSession, payload: dict) -> Payment:
@@ -53,44 +80,41 @@ async def handle_callback(session: AsyncSession, payload: dict) -> Payment:
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
 
-    if result_code == 0:
-        # Payment successful
+    # Find reservation by CheckoutRequestID
+    result = await session.exec(select(Reservation).where(Reservation.mpesa_checkout_request_id == checkout_id))
+    reservation = result.first()
+
+    if result_code == 0:  # Payment successful
         payment.status = PaymentStatus.SUCCESS
         payment.transaction_ref = next(
             (item["Value"] for item in metadata.get("Item", []) if item["Name"] == "MpesaReceiptNumber"),
             None
         )
 
-        # Update booking and room
-        booking = await session.get(Booking, payment.booking_id)
-        if booking:
-            booking.status = BookingStatus.CONFIRMED
-            room = await session.get(Room, booking.room_id)
-            if room:
-                if booking.is_shared:
-                    # Shared booking: increment until capacity (2)
-                    room.occupants = min(room.occupants + 1, 2)
-                    if room.occupants == 1:
-                        room.status = RoomStatus.PARTIALLY_OCCUPIED
-                    elif room.occupants == 2:
-                        room.status = RoomStatus.FULLY_OCCUPIED
-                else:
-                    # Non-shared booking: student takes the whole room
-                    room.occupants = 2
-                    room.status = RoomStatus.FULLY_OCCUPIED
-
-        session.add(payment)
-        session.add(booking)
-        if room:
-            session.add(room)
+        if reservation:
+            booking, updated_reservation = await convert_reservation_to_booking_logic(session, reservation, payment.amount)
+            if booking:
+                payment.booking_id = booking.id
+                session.add_all([payment, booking, updated_reservation])
+            else:
+                # Reservation expired before payment confirmation
+                session.add(reservation)
+        else:
+            session.add(payment)
 
     else:
         # Payment failed
         payment.status = PaymentStatus.FAILED
+        if reservation:
+            reservation.status = ReservationStatus.EXPIRED
+            session.add(reservation)
+        session.add(payment)
 
     await session.commit()
     await session.refresh(payment)
     return payment
+
+
 # 3. Request Refund (Landlord)
 async def request_refund(session: AsyncSession, payment_id: uuid.UUID, user_id: uuid.UUID, reason: str) -> Payment:
     payment = await session.get(Payment, payment_id)
@@ -124,10 +148,14 @@ async def process_refund(session: AsyncSession, payment_id: uuid.UUID, admin_id:
 
         # Reverse booking effects
         booking = await session.get(Booking, payment.booking_id)
-        booking.status = BookingStatus.CANCELLED
-        room = await session.get(Room, booking.room_id)
-        room.occupants = max(getattr(room, "occupants", 1) - 1, 0)
+        if booking:
+            booking.status = BookingStatus.CANCELLED
+            room = await session.get(Room, booking.room_id)
+            if room:
+                room.occupants = max(getattr(room, "occupants", 1) - 1, 0)
+                session.add(room)
 
+    session.add(payment)
     await session.commit()
     await session.refresh(payment)
     return payment
