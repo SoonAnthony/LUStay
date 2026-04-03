@@ -120,6 +120,16 @@ async def list_bookings_logic(session: AsyncSession) -> list[Booking]:
     result = await session.exec(select(Booking))
     return result.all()
 
+async def list_student_bookings_logic(session: AsyncSession, student_id: uuid.UUID) -> list[Booking]:
+    """
+    Return all bookings belonging to a specific student.
+    """
+    result = await session.exec(
+        select(Booking).where(Booking.user_id == student_id)
+    )
+    return result.scalars().all()
+
+
 async def update_booking_logic(booking: Booking, update_data: BookingUpdate) -> Booking:
     if update_data.room_id is not None:
         booking.room_id = update_data.room_id
