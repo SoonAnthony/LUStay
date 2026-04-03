@@ -127,7 +127,7 @@ async def list_student_bookings_logic(session: AsyncSession, student_id: uuid.UU
     result = await session.exec(
         select(Booking).where(Booking.user_id == student_id)
     )
-    return result.scalars().all()
+    return result.all()
 
 
 async def update_booking_logic(booking: Booking, update_data: BookingUpdate) -> Booking:
