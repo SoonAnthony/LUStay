@@ -13,6 +13,7 @@ from app.bookings.service import (
     update_booking_logic,
     record_balance_payment_logic,
     cancel_booking_logic,
+    list_student_bookings_logic
 )
 from app.rooms.models import Room
 from app.hostels.models import Hostel
@@ -57,6 +58,25 @@ async def create_reservation(
         raise HTTPException(status_code=400, detail=str(e))
 
 # Booking endpoints
+
+@bookings_router.get("/my", response_model=list[BookingRead])
+async def list_my_bookings(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_active_user),
+):
+    """
+    Students: list all their own bookings.
+    """
+    if current_user.role != "STUDENT":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only students can access this endpoint",
+        )
+
+    bookings = await list_student_bookings_logic(session, current_user.id)
+    return [BookingRead.model_validate(b) for b in bookings]
+
+
 @bookings_router.get("/{booking_id}", response_model=BookingRead)
 async def get_booking(
     booking_id: uuid.UUID,
