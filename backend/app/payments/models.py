@@ -28,7 +28,7 @@ class Payment(SQLModel, table=True):
         sa_column=Column(UUID(as_uuid=True), primary_key=True, nullable=False),
     )
 
-    booking_id: uuid.UUID = Field(foreign_key="bookings.id", nullable=False)
+    booking_id: uuid.UUID = Field(foreign_key="bookings.id", nullable=True)
 
     amount: int = Field(nullable=False)
     phone_number: str = Field(nullable=False)
