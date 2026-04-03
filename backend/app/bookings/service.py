@@ -17,6 +17,24 @@ async def create_booking_logic(session: AsyncSession, user_id: uuid.UUID, bookin
     if not room_type:
         raise ValueError("Room type not found")
 
+    # Check capacity before allowing booking
+    active_bookings_result = await session.exec(
+        select(Booking).where(
+            Booking.room_id == booking_data.room_id,
+            Booking.status.in_([BookingStatus.PENDING, BookingStatus.CONFIRMED])
+        )
+    )
+    active_bookings = active_bookings_result.all()
+
+    if booking_data.is_shared:
+        # Shared room: count individual occupants against capacity
+        if len(active_bookings) >= room_type.capacity:
+            raise ValueError(f"Room is at full capacity ({room_type.capacity} occupants)")
+    else:
+        # Solo booking: any active booking means the room is taken
+        if len(active_bookings) > 0:
+            raise ValueError("Room is already booked")
+
     # Calculate total price based on solo vs shared
     if booking_data.is_shared:
         total_price = room_type.price_double // room_type.capacity
@@ -37,6 +55,7 @@ async def create_booking_logic(session: AsyncSession, user_id: uuid.UUID, bookin
     )
     return booking
 
+
 async def update_booking_logic(session: AsyncSession, booking: Booking, update_data: BookingUpdate) -> Booking:
     if update_data.room_id is not None:
         booking.room_id = update_data.room_id
@@ -45,6 +64,7 @@ async def update_booking_logic(session: AsyncSession, booking: Booking, update_d
     if update_data.status is not None:
         booking.status = update_data.status
     return booking
+
 
 async def get_booking_logic(session: AsyncSession, booking_id: uuid.UUID) -> Booking:
     booking = await session.get(Booking, booking_id)
