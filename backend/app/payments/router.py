@@ -77,8 +77,8 @@ async def callback(
     reservation = result.first()
 
     payment, booking, updated_reservation = await handle_callback_logic(
-        payload.dict(), payment, reservation
-    )
+        payload.dict(), payment, reservation, session
+    ) 
 
     objects = [payment]
     if booking:
