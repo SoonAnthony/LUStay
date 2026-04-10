@@ -99,6 +99,7 @@ async def convert_reservation_to_booking_logic(session: AsyncSession, reservatio
         deposit_amount=deposit_amount,
         amount_paid=amount_paid,
         status=BookingStatus.CONFIRMED,
+        mpesa_checkout_request_id=reservation.mpesa_checkout_request_id
     )
     reservation.status = ReservationStatus.CONVERTED
     return booking, reservation

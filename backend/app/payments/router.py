@@ -48,6 +48,7 @@ async def initiate(
     session.add_all([payment, reservation])
     await session.commit()
     await session.refresh(payment)
+    await session.refresh(reservation)
 
     return payment
 
@@ -58,40 +59,48 @@ async def callback(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
-    # Log the raw incoming JSON for debugging
     data = await request.json()
     print("RAW MPESA CALLBACK:", data)
+
     body = payload.dict().get("Body", {})
     stk_callback = body.get("stkCallback", {})
     checkout_id = stk_callback.get("CheckoutRequestID")
 
-    # Find payment and reservation using checkout_id
-    result = await session.exec(
+    # Find payment and reservation
+    payment = (await session.exec(
         select(Payment).where(Payment.checkout_request_id == checkout_id)
-    )
-    payment = result.first()
+    )).first()
 
-    result = await session.exec(
+    reservation = (await session.exec(
         select(Reservation).where(Reservation.mpesa_checkout_request_id == checkout_id)
-    )
-    reservation = result.first()
+    )).first()
 
     payment, booking, updated_reservation = await handle_callback_logic(
         payload.dict(), payment, reservation, session
-    ) 
+    )
 
+    # ✅ Persist booking first so it gets an ID
     objects = [payment]
     if booking:
-        objects.append(booking)
+        session.add(booking)
+        await session.commit()
+        await session.refresh(booking)
+
+        # Now booking.id exists, link it to payment
+        payment.booking_id = booking.id
+        objects.append(payment)
+
     if updated_reservation:
         objects.append(updated_reservation)
 
     session.add_all(objects)
     await session.commit()
+
     await session.refresh(payment)
+    if booking:
+        await session.refresh(booking)
 
     return {"status": "ok", "payment_id": str(payment.id)}
-
 
 @payments_router.post("/{payment_id}/request-refund", response_model=PaymentRead)
 async def refund_request(
