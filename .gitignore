@@ -1,51 +1,49 @@
 # =========================
-# Python cache & compiled files
+# Python
 # =========================
-**/__pycache__/
+__pycache__/
 *.py[cod]
-*.pyo
-*.pyd
-*.pyc
 
-# =========================
 # Environment & secrets
-# =========================
-*.env                 # ignore any .env file anywhere
-backend/.env          # explicitly ignore backend/.env
+*.env
+.env.*
 
-# =========================
-# Virtual environment
-# =========================
-backend/venv/         # ignore local virtual environment
+# Virtual environments
+venv/
+.venv/
+backend/venv/
 
-# =========================
-# Python packaging & builds
-# =========================
-*.egg-info/
-*.egg
+# Builds
 dist/
 build/
-*.wheel
+*.egg-info/
 
 # =========================
-# IDE / editor files
+# IDE / OS
 # =========================
-.vscode/              # VS Code workspace settings
-*.code-workspace
+.vscode/
 .idea/
-*.sublime-project
-*.sublime-workspace
+.DS_Store
+Thumbs.db
 
 # =========================
-# OS generated files
-# =========================
-.DS_Store             # macOS
-Thumbs.db             # Windows
-
-# =========================
-# Logs and temporary files
+# Logs
 # =========================
 *.log
 *.tmp
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
 
-app/scripts/ 
+# =========================
+# Frontend (React/Vite)
+# =========================
+node_modules/
+frontend/**/node_modules/
+
+dist/
+frontend/**/dist/
+build/
+frontend/**/build/
+
+frontend/**/.vite/
