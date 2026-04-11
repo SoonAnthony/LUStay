@@ -91,7 +91,7 @@ const Navbar = () => {
 
       {/* Mobile Menu */}
       {isOpen && (
-        <div className="fixed top-[64px] right-0 w-2/3 h-[calc(100%-64px)] bg-cyan-900 shadow-lg z-40 flex flex-col items-start px-6 py-6 space-y-4 text-white transition-transform duration-300">
+        <div className="fixed top-16 right-0 w-2/3 h-[calc(100%-64px)] bg-cyan-900 shadow-lg z-40 flex flex-col items-start px-6 py-6 space-y-4 text-white transition-transform duration-300">
           {/* Vertical nav links */}
           <Link to="/" className="hover:text-gray-200 transition-colors duration-300">Home</Link>
           <Link to="/hostels" className="hover:text-gray-200 transition-colors duration-300">Hostels</Link>
