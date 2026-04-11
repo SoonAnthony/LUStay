@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import logo from "../assets/images/LUStay_logo.png";
 import { getToken, logout } from "../utils/auth";
 
-export default function Navbar() {
+const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState(null);
 
@@ -31,49 +31,56 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="bg-sky-100 shadow-md">
+    <nav className="bg-cyan-800 shadow-md">
       <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
 
         {/* Logo */}
-        <Link to="/" className="flex items-center space-x-2">
-          <img src={logo} alt="LUStay Logo" className="h-10" />
-          <span className="text-xl font-bold text-blue-600">LUStay</span>
+        <Link to="/" className="flex items-center space-x-1">
+          {/* 1. The new icon-only logo */}
+          <img src={logo} alt="LUStay Logo" className="h-12 w-auto -ml-2 -mr-9 object-contain scale-110" />
+          
+          {/* 2. Text with 'spanning' for different colors */}
+          <span className="text-3xl font-bold tracking-tight">
+            <span className="text-blue-600">LU</span>
+            <span className="text-lime-500">Stay</span>
+          </span>
         </Link>
 
         {/* Desktop Links */}
-        <ul className="hidden md:flex space-x-6 text-gray-700 font-medium">
-          <Link to="/">Home</Link>
-          <Link to="/hostels">Hostels</Link>
-          <li>About</li>
-          <li>Contact</li>
+        <ul className="hidden md:flex space-x-6 text-white font-medium">
+          <Link to="/" className="hover:text-gray-200 transition-colors duration-300">Home</Link>
+          <Link to="/hostels" className="hover:text-gray-200 transition-colors duration-300">Hostels</Link>
+          <Link to="/maps" className="hover:text-gray-200 transition-colors duration-300">Maps</Link>
+          <Link to="/bookings" className="hover:text-gray-200 transition-colors duration-300">Bookings</Link>
+          <Link to="/about" className="hover:text-gray-200 transition-colors duration-300">About Us</Link>
         </ul>
 
         {/* Right Side */}
-        <div className="hidden md:flex items-center space-x-4">
-
+        <div className="hidden md:flex items-center space-x-4 text-white">
           {user ? (
             <div className="flex items-center space-x-2">
               <User size={18} />
               <span>{user.name}</span>
-
               <button
                 onClick={handleLogout}
-                className="ml-3 bg-red-500 text-white px-3 py-1 rounded-lg"
+                className="ml-3 bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition duration-300"
               >
                 Logout
               </button>
             </div>
           ) : (
-            <Link to="/login" className="bg-blue-500 text-white px-4 py-2 rounded-xl">
-                Login
+            <Link
+              to="/login"
+              className="bg-blue-500 text-white px-4 py-2 rounded-xl hover:bg-blue-600 transition duration-300"
+            >
+              Login
             </Link>
           )}
-
         </div>
 
         {/* Mobile */}
-        <div className="md:hidden">
-          <button onClick={() => setIsOpen(!isOpen)}>
+        <div className="md:hidden text-white">
+          <button onClick={() => setIsOpen(!isOpen)} className="hover:text-gray-200 transition-colors duration-300">
             {isOpen ? <X /> : <Menu />}
           </button>
         </div>
@@ -81,19 +88,21 @@ export default function Navbar() {
 
       {/* Mobile Menu */}
       {isOpen && (
-        <div className="md:hidden px-4 pb-4 space-y-3">
-          <Link to="/">Home</Link>
-          <Link to="/hostels">Hostels</Link>
-
+        <div className="md:hidden px-4 pb-4 space-y-3 text-white">
+          <Link to="/" className="hover:text-gray-200 transition-colors duration-300">Home</Link>
+          <Link to="/hostels" className="hover:text-gray-200 transition-colors duration-300">Hostels</Link>
           {user ? (
             <>
               <p>{user.name}</p>
-              <button onClick={handleLogout} className="text-red-500">
+              <button
+                onClick={handleLogout}
+                className="text-red-500 hover:text-red-600 transition duration-300"
+              >
                 Logout
               </button>
             </>
           ) : (
-            <button className="bg-blue-500 text-white px-3 py-2 rounded-lg">
+            <button className="bg-blue-500 text-white px-3 py-2 rounded-lg hover:bg-blue-600 transition duration-300">
               Login
             </button>
           )}
@@ -101,4 +110,6 @@ export default function Navbar() {
       )}
     </nav>
   );
-}
+};
+
+export default Navbar;
