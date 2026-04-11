@@ -31,7 +31,7 @@ const Footer = () => {
               <Link
                 to="/"
                 className="relative w-fit block
-                           after:block after:content-[''] after:absolute after:h-[2px]
+                           after:block after:content-[''] after:absolute after:h-0.5
                            after:bg-lime-400 after:w-0 after:bottom-0 after:left-0
                            hover:after:w-full after:transition-all after:duration-300"
               >
@@ -43,7 +43,7 @@ const Footer = () => {
               <Link
                 to="/hostels"
                 className="relative w-fit block
-                           after:block after:content-[''] after:absolute after:h-[2px]
+                           after:block after:content-[''] after:absolute after:h-0.5
                            after:bg-lime-400 after:w-0 after:bottom-0 after:left-0
                            hover:after:w-full after:transition-all after:duration-300"
               >
@@ -55,7 +55,7 @@ const Footer = () => {
               <Link
                 to="/maps"
                 className="relative w-fit block
-                           after:block after:content-[''] after:absolute after:h-[2px]
+                           after:block after:content-[''] after:absolute after:h-0.5
                            after:bg-lime-400 after:w-0 after:bottom-0 after:left-0
                            hover:after:w-full after:transition-all after:duration-300"
               >
@@ -67,7 +67,7 @@ const Footer = () => {
               <Link
                 to="/bookings"
                 className="relative w-fit block
-                           after:block after:content-[''] after:absolute after:h-[2px]
+                           after:block after:content-[''] after:absolute after:h-0.5
                            after:bg-lime-400 after:w-0 after:bottom-0 after:left-0
                            hover:after:w-full after:transition-all after:duration-300"
               >
@@ -79,7 +79,7 @@ const Footer = () => {
               <Link
                 to="/about"
                 className="relative w-fit block
-                           after:block after:content-[''] after:absolute after:h-[2px]
+                           after:block after:content-[''] after:absolute after:h-0.5
                            after:bg-lime-400 after:w-0 after:bottom-0 after:left-0
                            hover:after:w-full after:transition-all after:duration-300"
               >
