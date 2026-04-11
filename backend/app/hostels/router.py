@@ -36,7 +36,7 @@ admin_hostel_router = APIRouter(prefix="/admin/hostels", tags=["Admin Hostels"])
 # PUBLIC ROUTES
 # ============================================================
 
-@@hostel_router.get("/featured", response_model=List[HostelFeaturedRead])
+@hostel_router.get("/featured", response_model=List[HostelFeaturedRead])
 async def get_featured_hostels(
     hostel_service: HostelService = Depends(get_hostel_service)
 ):
