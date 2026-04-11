@@ -40,6 +40,7 @@ class HostelBase(BaseModel):
     latitude: Optional[float]
     longitude: Optional[float]
     status: HostelStatus = HostelStatus.PENDING
+    is_featured: bool = False
 
 class HostelCreate(HostelBase):
     amenity_ids: Optional[List[UUID]] = None
@@ -63,6 +64,7 @@ class HostelCreateResponse(BaseModel):
     latitude: float
     longitude: float
     status: str
+    is_featured: bool
     owner_id: UUID
     created_at: datetime
     updated_at: datetime
