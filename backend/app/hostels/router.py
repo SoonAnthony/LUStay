@@ -36,6 +36,14 @@ admin_hostel_router = APIRouter(prefix="/admin/hostels", tags=["Admin Hostels"])
 # PUBLIC ROUTES
 # ============================================================
 
+@hostel_router.get("/featured", response_model=List[HostelRead])
+async def get_featured_hostels(
+    hostel_service: HostelService = Depends(get_hostel_service)
+):
+    hostels = await hostel_service.get_featured_hostels(limit=6)
+    return [HostelRead.model_validate(h) for h in hostels]
+
+
 @hostel_router.get("/", response_model=List[HostelRead])
 async def get_public_hostels(
     hostel_service: HostelService = Depends(get_hostel_service)
@@ -57,14 +65,6 @@ async def get_hostel(
 
     # Convert to Pydantic
     return HostelRead.model_validate(hostel)
-
-
-@hostel_router.get("/featured", response_model=List[HostelRead])
-async def get_featured_hostels(
-    hostel_service: HostelService = Depends(get_hostel_service)
-):
-    hostels = await hostel_service.get_featured_hostels(limit=6)
-    return [HostelRead.model_validate(h) for h in hostels]
 
 
 # ============================================================
