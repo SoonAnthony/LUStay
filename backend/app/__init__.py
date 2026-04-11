@@ -9,6 +9,7 @@ from app.core.cloudinary import cloudinary
 from app.rooms.router import room_landlord_router, room_admin_router, room_public_router
 from app.bookings.router import bookings_router
 from app.payments.router import payments_router
+from fastapi.middleware.cors import CORSMiddleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -24,6 +25,16 @@ async def lifespan(app: FastAPI):
     print("Disconnected from the database.")
 
 app = FastAPI(lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # ✅ Create API v1 router
