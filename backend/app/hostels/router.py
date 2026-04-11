@@ -59,6 +59,14 @@ async def get_hostel(
     return HostelRead.model_validate(hostel)
 
 
+@hostel_router.get("/featured", response_model=List[HostelRead])
+async def get_featured_hostels(
+    hostel_service: HostelService = Depends(get_hostel_service)
+):
+    hostels = await hostel_service.get_featured_hostels(limit=6)
+    return [HostelRead.model_validate(h) for h in hostels]
+
+
 # ============================================================
 # LANDLORD / ADMIN ROUTES
 # ============================================================
@@ -193,6 +201,20 @@ async def admin_update_hostel(
     # ✅ Convert to Pydantic before returning
     return HostelRead.model_validate(updated_hostel)
 
+@admin_hostel_router.patch("/{hostel_id}/featured")
+async def set_hostel_featured(
+    hostel_id: UUID,
+    is_featured: bool = Body(..., embed=True),
+    hostel_service: HostelService = Depends(get_hostel_service),
+    _: User = Depends(get_current_admin)
+):
+    hostel = await hostel_service.set_featured(hostel_id, is_featured)
+    if not hostel:
+        raise HTTPException(status_code=404, detail="Hostel not found")
+
+    await hostel_service.session.commit()
+    await hostel_service.session.refresh(hostel)
+    return {"success": True, "is_featured": hostel.is_featured, "hostel_id": hostel_id}
 
 @admin_hostel_router.delete("/{hostel_id}")
 async def admin_delete_hostel(
