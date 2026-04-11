@@ -145,6 +145,46 @@ class HostelService:
         result = await self.session.execute(query)
         return result.scalar_one_or_none()
     
+    async def get_featured_hostels(self, limit: int = 6) -> List[Hostel]:
+        query = (
+            select(Hostel)
+            .where(
+                Hostel.is_featured == True,
+                Hostel.status == HostelStatus.APPROVED,
+                Hostel.is_deleted == False
+            )
+            .options(
+                selectinload(Hostel.amenities),
+                selectinload(Hostel.images),
+            )
+            .order_by(desc(Hostel.created_at))
+            .limit(limit)
+        )
+        result = await self.session.execute(query)
+        return result.scalars().all()
+
+    async def set_featured(self, hostel_id: UUID, is_featured: bool) -> Optional[Hostel]:
+        hostel = await self.get_hostel(hostel_id)
+        if not hostel:
+            return None
+
+        hostel.is_featured = is_featured
+
+        # Log in blockchain
+        previous_block = await self._get_last_block(hostel_id)
+        previous_hash = previous_block.hash if previous_block else None
+        action = "featured" if is_featured else "unfeatured"
+
+        block = HostelBlock(
+            hostel_id=hostel_id,
+            data=f"Hostel {action}",
+            previous_hash=previous_hash,
+            hash=self.generate_hash(f"Hostel {action}", previous_hash)
+        )
+        self.session.add(block)
+        await self.session.flush()
+        return hostel
+    
     async def get_all_hostels(
         self,
         limit: int = 50,
