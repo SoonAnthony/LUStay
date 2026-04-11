@@ -1,7 +1,7 @@
 import Hero from "../components/Hero";
 import FeaturedHostelsSection from "../components/FeaturedHostelsSection";
 import WhyChooseUs from "../components/WhyChooseUs";
-
+import Footer from "../components/Footer";
 
 const Home = () => {
   return (
@@ -9,6 +9,8 @@ const Home = () => {
       <Hero />
       <FeaturedHostelsSection />
       <WhyChooseUs />
+      <Footer />
+
     </>
   );
 };
