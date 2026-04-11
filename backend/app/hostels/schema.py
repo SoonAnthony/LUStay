@@ -80,6 +80,21 @@ class HostelRead(HostelBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+class HostelFeaturedRead(BaseModel):
+    id: UUID
+    name: str
+    description: Optional[str] = None
+    location: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    status: HostelStatus
+    is_featured: bool
+    owner_id: UUID
+    amenities: Optional[List[AmenityRead]] = []
+    images: Optional[List["HostelImageRead"]] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
 class PaginatedHostels(BaseModel):
     total: int
     limit: int
