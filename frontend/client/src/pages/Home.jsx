@@ -1,10 +1,13 @@
-import React from "react";
+import Hero from "../components/Hero";
+import FeaturedHostelsSection from "../components/FeaturedHostelsSection";
+
 
 const Home = () => {
   return (
-    <div className="text-center mt-10">
-      <h1 className="text-3xl font-bold">Welcome to LUStay</h1>
-    </div>
+    <>
+      <Hero />
+      <FeaturedHostelsSection />
+    </>
   );
 };
 
