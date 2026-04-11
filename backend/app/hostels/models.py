@@ -98,6 +98,7 @@ class Hostel(SQLModel, table=True):
         )
     )
     is_deleted: bool = Field(default=False)
+    is_featured: bool = Field(default=False)
 
     # -----------------------------
     # Relationships
