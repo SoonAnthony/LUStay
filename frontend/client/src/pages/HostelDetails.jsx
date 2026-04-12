@@ -175,7 +175,7 @@ const HostelDetails = () => {
 
                     {/* BUTTON */}
                     <button
-                      onClick={() => navigate(`/rooms/${type.id}`)}
+                      onClick={() => navigate(`/room-types/${type.id}`)}
                       className="mt-4 w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
                     >
                       View Rooms
