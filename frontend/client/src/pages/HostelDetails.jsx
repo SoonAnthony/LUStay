@@ -87,7 +87,7 @@ const HostelDetails = () => {
             <img
               src={hostel.images?.[0]?.image_url}
               alt={hostel.name}
-              className="w-full h-[350px] object-cover rounded-2xl"
+              className="w-full h-87.5 object-cover rounded-2xl"
             />
           </div>
 
