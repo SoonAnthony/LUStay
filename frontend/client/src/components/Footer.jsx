@@ -11,12 +11,12 @@ const LINKS = {
   ],
   Company: [
     { label: "About LUStay", to: "/about" },
-    { label: "Safety & Trust", to: "/trust" },
+    { label: "Safety & Trust", to: "#" },
   ],
   Support: [
-    { label: "Help Center", to: "/help" },
-    { label: "Contact Us", to: "/contact" },
-    { label: "Privacy Policy", to: "/privacy" },
+    { label: "Help Center", to: "#" },
+    { label: "Contact Us", to: "#" },
+    { label: "Privacy Policy", to: "#" },
   ],
 };
 
@@ -40,8 +40,10 @@ export default function Footer() {
 
             <p className="text-gray-300 text-sm leading-relaxed mb-4">
               LUStay helps Laikipia University students find safe, verified,
-              and affordable hostels around campus and nearby towns like Nanyuki
-              and Nyahururu. Book instantly using secure mobile payments.
+              and affordable hostels around campus and nearby areas such as
+              Ndoro, Cherika, Nyumba Tatu, Two Brothers, Comrades, Tairi Mbili,
+              Karuga, Governor, Losogwa, Mambo Leo, Chemichemi, and Nyahururu town.
+              Book instantly using secure mobile payments.
             </p>
 
             {/* SOCIALS */}
