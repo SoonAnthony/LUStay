@@ -148,7 +148,7 @@ const HostelDetails = () => {
 
                     {/* INFO */}
                     <h3 className="text-lg font-semibold text-gray-800">
-                      {type.name}
+                     {type.name} Room
                     </h3>
 
                     <p className="text-gray-500 text-sm mt-1">
