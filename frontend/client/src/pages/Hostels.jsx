@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import HostelCard, { HostelCardSkeleton } from "../components/HostelCard";
 import Footer from "../components/Footer";
@@ -7,6 +8,8 @@ const Hostels = () => {
   const [hostels, setHostels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     api
@@ -21,7 +24,6 @@ const Hostels = () => {
       });
   }, []);
 
-  // ONLY search logic (no filters, no sorting)
   const filteredHostels = hostels.filter((h) =>
     h.name.toLowerCase().includes(search.toLowerCase()) ||
     h.location.toLowerCase().includes(search.toLowerCase())
@@ -77,7 +79,13 @@ const Hostels = () => {
               </div>
             ) : (
               filteredHostels.map((hostel) => (
-                <HostelCard key={hostel.id} hostel={hostel} />
+                <div
+                  key={hostel.id}
+                  onClick={() => navigate(`/hostels/${hostel.id}`)}
+                  className="cursor-pointer"
+                >
+                  <HostelCard hostel={hostel} />
+                </div>
               ))
             )}
           </div>
@@ -85,7 +93,6 @@ const Hostels = () => {
         </div>
       </section>
 
-      {/* FOOTER OUTSIDE SECTION */}
       <Footer />
     </>
   );
