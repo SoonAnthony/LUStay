@@ -105,17 +105,21 @@ class RoomService:
         return room
 
     # List Rooms (public)
-    async def list_rooms(self, hostel_id: Optional[UUID] = None) -> List[Room]:
+    async def list_rooms(self, hostel_id: Optional[UUID] = None, room_type_id: Optional[UUID] = None) -> List[Room]:
         query = select(Room).options(
             selectinload(Room.room_type).selectinload(RoomType.images)
         )
         if hostel_id:
             query = query.where(Room.hostel_id == hostel_id)
+        if room_type_id:
+            query = query.where(Room.room_type_id == room_type_id)
 
+        # ✅ bypass identity map cache, always read fresh from DB
+        await self.session.exec(select(Room).execution_options(populate_existing=True))
         result = await self.session.exec(query)
         return result.all()
 
-    # Get Single Room (public)
+# Get Single Room (public)
     async def get_room(self, room_id: UUID) -> Room:
         result = await self.session.execute(
             select(Room)
@@ -123,13 +127,13 @@ class RoomService:
                 selectinload(Room.room_type).selectinload(RoomType.images)
             )
             .where(Room.id == room_id)
+            .execution_options(populate_existing=True)  # ✅
         )
         room = result.scalar_one_or_none()
         if not room:
             raise HTTPException(status_code=404, detail="Room not found")
         return room
-
-
+    
     # Update Room (Admin or Landlord)
     async def update_room(self, room_id: UUID, data: RoomUpdate, current_user: User) -> Room:
         room = await self.session.get(Room, room_id)
