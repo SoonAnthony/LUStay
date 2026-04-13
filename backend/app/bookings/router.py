@@ -5,7 +5,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload
 
 from app.db.engine import get_session
-from app.bookings.models import Booking
+from app.bookings.models import Booking, Reservation
 from app.bookings.schema import BookingRead, BookingUpdate, ReservationCreate, ReservationRead
 from app.bookings.service import (
     create_reservation_logic,
@@ -58,6 +58,18 @@ async def create_reservation(
         raise HTTPException(status_code=400, detail=str(e))
 
 # Booking endpoints
+@bookings_router.get("/reservations/{reservation_id}", response_model=ReservationRead)
+async def get_reservation(
+    reservation_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_active_user),
+):
+    reservation = await session.get(Reservation, reservation_id)
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+    if reservation.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return ReservationRead.model_validate(reservation)
 
 @bookings_router.get("/my", response_model=list[BookingRead])
 async def list_my_bookings(
