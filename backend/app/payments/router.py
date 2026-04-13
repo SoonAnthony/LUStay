@@ -66,7 +66,6 @@ async def callback(
     stk_callback = body.get("stkCallback", {})
     checkout_id = stk_callback.get("CheckoutRequestID")
 
-    # Find payment and reservation
     payment = (await session.exec(
         select(Payment).where(Payment.checkout_request_id == checkout_id)
     )).first()
@@ -79,22 +78,27 @@ async def callback(
         payload.dict(), payment, reservation, session
     )
 
-    # ✅ Persist booking first so it gets an ID
     objects = [payment]
     if booking:
         session.add(booking)
         await session.commit()
+        session.expire_all()  # ✅ clear identity map after first commit
         await session.refresh(booking)
 
-        # Now booking.id exists, link it to payment
         payment.booking_id = booking.id
         objects.append(payment)
+
+        # refresh room to get updated status
+        room = await session.get(Room, booking.room_id)
+        if room:
+            await session.refresh(room)
 
     if updated_reservation:
         objects.append(updated_reservation)
 
     session.add_all(objects)
     await session.commit()
+    session.expire_all()  # ✅ clear identity map after second commit
 
     await session.refresh(payment)
     if booking:
