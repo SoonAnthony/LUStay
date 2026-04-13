@@ -8,6 +8,9 @@ import Bookings from "./pages/Bookings";
 import About from "./pages/About";  
 import HostelDetails from "./pages/HostelDetails";
 import RoomTypeDetails from "./pages/RoomTypeDetails";
+import RoomDetails from "./pages/RoomDetails";
+import Login from "./pages/Login";
+import PaymentStatus from "./pages/PaymentStatus";
 
 const App = () => {
   return (
@@ -22,6 +25,9 @@ const App = () => {
           <Route path="/hostels" element={<Hostels />} />
           <Route path="/hostels/:id" element={<HostelDetails />} />
           <Route path="/room-types/:id" element={<RoomTypeDetails />} />
+          <Route path="/rooms/:id" element={<RoomDetails />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/payments/:id" element={<PaymentStatus />} />
           <Route path="/maps" element={<Maps />} />
           <Route path="/bookings" element={<Bookings />} />
           <Route path="/about" element={<About />} /> 
