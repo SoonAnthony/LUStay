@@ -89,6 +89,7 @@ fastapi dev app/
 ### Frontend
 
 - cd frontend
+- cd client
 - npm install
 - npm start
 
