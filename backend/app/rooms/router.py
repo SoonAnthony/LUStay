@@ -2,7 +2,7 @@
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, UploadFile, File
+from fastapi import APIRouter, Depends, Query, UploadFile, File, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.rooms.schema import (
@@ -125,12 +125,23 @@ async def delete_room_admin(
 
 # PUBLIC ROUTES
 @room_public_router.get("/", response_model=List[RoomRead])
-async def list_rooms(hostel_id: Optional[UUID] = Query(None), session: AsyncSession = Depends(get_session)):
+async def list_rooms(
+    response: Response,
+    hostel_id: Optional[UUID] = Query(None),
+    room_type_id: Optional[UUID] = Query(None),  # ✅ frontend filters by this
+    session: AsyncSession = Depends(get_session)
+):
+    response.headers["Cache-Control"] = "no-store"  # ✅ never cache room availability
     service = RoomService(session)
-    return await service.list_rooms(hostel_id)
+    return await service.list_rooms(hostel_id, room_type_id)
 
 
 @room_public_router.get("/{room_id}/", response_model=RoomRead)
-async def get_room_public(room_id: UUID, session: AsyncSession = Depends(get_session)):
+async def get_room_public(
+    response: Response,
+    room_id: UUID,
+    session: AsyncSession = Depends(get_session)
+):
+    response.headers["Cache-Control"] = "no-store"
     service = RoomService(session)
     return await service.get_room(room_id)
