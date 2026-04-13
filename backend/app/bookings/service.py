@@ -5,7 +5,7 @@ from sqlmodel import select
 
 from app.bookings.models import Reservation, ReservationStatus, Booking, BookingStatus
 from app.bookings.schema import BookingUpdate
-from app.rooms.models import Room, RoomType
+from app.rooms.models import Room, RoomType, RoomStatus
 
 RESERVATION_TTL_SECONDS = 180  # 3 minutes
 
@@ -51,7 +51,7 @@ async def _count_active_slots(session: AsyncSession, room_id: uuid.UUID) -> int:
     )
     return len(reservations.all()) + len(bookings.all())
 
-# Reservation 
+# Reservation
 async def create_reservation_logic(session: AsyncSession, user_id: uuid.UUID, room_id: uuid.UUID, semester: str, is_shared: bool) -> Reservation:
     room, room_type = await _get_room_and_type(session, room_id)
     await _expire_stale_reservations(session, room_id)
@@ -87,9 +87,11 @@ async def convert_reservation_to_booking_logic(session: AsyncSession, reservatio
     if reservation.status != ReservationStatus.ACTIVE or reservation.expires_at <= now:
         reservation.status = ReservationStatus.EXPIRED
         return None, reservation
+
     room, room_type = await _get_room_and_type(session, reservation.room_id)
     total_price = (room_type.price_double // room_type.capacity) if reservation.is_shared else room_type.price_single
     deposit_amount = int(total_price * 0.2)
+
     booking = Booking(
         user_id=reservation.user_id,
         room_id=reservation.room_id,
@@ -102,6 +104,24 @@ async def convert_reservation_to_booking_logic(session: AsyncSession, reservatio
         mpesa_checkout_request_id=reservation.mpesa_checkout_request_id
     )
     reservation.status = ReservationStatus.CONVERTED
+
+    # Count current confirmed bookings (+1 for the one being created now)
+    active_slots = await _count_active_slots(session, reservation.room_id)
+    new_occupants = active_slots + 1
+
+    # ✅ Update occupants count
+    room.occupants = new_occupants
+
+    # ✅ Set correct status — handles both shared and single rooms
+    if new_occupants >= room_type.capacity:
+        room.status = RoomStatus.FULLY_OCCUPIED
+    elif new_occupants > 0:
+        room.status = RoomStatus.PARTIALLY_OCCUPIED
+    else:
+        room.status = RoomStatus.AVAILABLE
+
+    session.add(room)
+
     return booking, reservation
 
 async def expire_reservation_logic(reservation: Reservation) -> Reservation:
@@ -110,7 +130,7 @@ async def expire_reservation_logic(reservation: Reservation) -> Reservation:
     reservation.status = ReservationStatus.EXPIRED
     return reservation
 
-# Booking 
+# Booking
 async def get_booking_logic(session: AsyncSession, booking_id: uuid.UUID) -> Booking:
     booking = await session.get(Booking, booking_id)
     if not booking:
@@ -122,14 +142,10 @@ async def list_bookings_logic(session: AsyncSession) -> list[Booking]:
     return result.all()
 
 async def list_student_bookings_logic(session: AsyncSession, student_id: uuid.UUID) -> list[Booking]:
-    """
-    Return all bookings belonging to a specific student.
-    """
     result = await session.exec(
         select(Booking).where(Booking.user_id == student_id)
     )
     return result.all()
-
 
 async def update_booking_logic(booking: Booking, update_data: BookingUpdate) -> Booking:
     if update_data.room_id is not None:
