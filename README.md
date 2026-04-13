@@ -91,7 +91,7 @@ fastapi dev app/
 - cd frontend
 - cd client
 - npm install
-- npm start
+- npm run dev
 
 🎯 Impact
 
