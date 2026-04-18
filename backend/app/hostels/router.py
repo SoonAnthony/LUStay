@@ -13,7 +13,7 @@ from app.user.dependencies import get_current_active_user, get_current_admin
 
 
 # -------------------------------------------------
-# Dependency to provide a HostelService instance and AmenityService instance
+# Dependencies
 # -------------------------------------------------
 async def get_hostel_service(
     session: AsyncSession = Depends(get_session)
@@ -25,6 +25,8 @@ async def get_amenity_service(
 ) -> AmenityService:
     hostel_service = HostelService(session)
     return AmenityService(session, hostel_service)
+
+
 # -------------------------------------------------
 # Routers
 # -------------------------------------------------
@@ -48,9 +50,13 @@ async def get_featured_hostels(
 async def get_public_hostels(
     hostel_service: HostelService = Depends(get_hostel_service)
 ):
-    hostels = await hostel_service.get_all_hostels(status=HostelStatus.APPROVED)
-    # Convert each hostel to Pydantic
-    return [HostelRead.model_validate(h) for h in hostels.hostels]
+    # ✅ No blocks, no count query — fastest possible public listing
+    result = await hostel_service.get_all_hostels(
+        status=HostelStatus.APPROVED,
+        include_blocks=False,
+        include_count=False,
+    )
+    return [HostelRead.model_validate(h) for h in result.hostels]
 
 
 @hostel_router.get("/{hostel_id}", response_model=HostelRead)
@@ -59,17 +65,15 @@ async def get_hostel(
     hostel_service: HostelService = Depends(get_hostel_service)
 ):
     hostel = await hostel_service.get_hostel(hostel_id)
-
     if not hostel:
         raise HTTPException(status_code=404, detail="Hostel not found")
-
-    # Convert to Pydantic
     return HostelRead.model_validate(hostel)
 
 
 # ============================================================
 # LANDLORD / ADMIN ROUTES
 # ============================================================
+
 @hostel_router.post("/", response_model=HostelCreateResponse, status_code=201)
 async def create_hostel(
     payload: HostelCreate,
@@ -87,11 +91,9 @@ async def create_hostel(
             data=payload,
             owner_id=current_user.id
         )
-
         await hostel_service.session.commit()
         await hostel_service.session.refresh(hostel)
-
-        return hostel  
+        return hostel
 
     except ValueError as e:
         await hostel_service.session.rollback()
@@ -100,6 +102,7 @@ async def create_hostel(
     except Exception as e:
         await hostel_service.session.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @hostel_router.patch("/{hostel_id}", response_model=HostelRead)
 async def update_hostel(
@@ -110,7 +113,6 @@ async def update_hostel(
 ):
     updates = payload.model_dump(exclude_unset=True)
 
-    # Remove status if user is landlord
     hostel = await hostel_service.get_hostel(hostel_id)
     if not hostel:
         raise HTTPException(status_code=404, detail="Hostel not found")
@@ -119,11 +121,10 @@ async def update_hostel(
     if current_user.role != UserRole.ADMIN and "status" in updates:
         updates.pop("status")
 
-    # ✅ This will return fully loaded hostel with relationships
     updated_hostel = await hostel_service.update_hostel(hostel_id, **updates)
     if not updated_hostel:
         raise HTTPException(status_code=404, detail="Hostel not found")
-    
+
     await hostel_service.session.commit()
     await hostel_service.session.refresh(updated_hostel)
 
@@ -138,23 +139,16 @@ async def delete_hostel(
 ):
     try:
         hostel = await hostel_service.get_hostel(hostel_id)
-
         if not hostel:
             raise HTTPException(status_code=404, detail="Hostel not found")
-
         if current_user.role != UserRole.ADMIN and hostel.owner_id != current_user.id:
-            raise HTTPException(
-                status_code=403,
-                detail="Not authorized to delete this hostel"
-            )
+            raise HTTPException(status_code=403, detail="Not authorized to delete this hostel")
 
         success = await hostel_service.delete_hostel(hostel_id)
-
         if not success:
             raise HTTPException(status_code=400, detail="Delete failed")
 
         await hostel_service.session.commit()
-
         return {"success": True, "message": "Hostel deleted successfully"}
 
     except HTTPException:
@@ -169,6 +163,7 @@ async def delete_hostel(
 # ============================================================
 # ADMIN ROUTES
 # ============================================================
+
 @admin_hostel_router.get("/", response_model=PaginatedHostels)
 async def admin_get_all_hostels(
     limit: int = 50,
@@ -177,8 +172,14 @@ async def admin_get_all_hostels(
     hostel_service: HostelService = Depends(get_hostel_service),
     _: User = Depends(get_current_admin)
 ):
-    result = await hostel_service.get_all_hostels(limit=limit, offset=offset, status=status)
-    # Convert each hostel to Pydantic after full loading
+    # ✅ Admin gets blocks + count for full management view
+    result = await hostel_service.get_all_hostels(
+        limit=limit,
+        offset=offset,
+        status=status,
+        include_blocks=True,
+        include_count=True,
+    )
     result.hostels = [HostelRead.model_validate(h) for h in result.hostels]
     return result
 
@@ -198,8 +199,8 @@ async def admin_update_hostel(
     await hostel_service.session.commit()
     await hostel_service.session.refresh(updated_hostel)
 
-    # ✅ Convert to Pydantic before returning
     return HostelRead.model_validate(updated_hostel)
+
 
 @admin_hostel_router.patch("/{hostel_id}/featured")
 async def set_hostel_featured(
@@ -216,6 +217,7 @@ async def set_hostel_featured(
     await hostel_service.session.refresh(hostel)
     return {"success": True, "is_featured": hostel.is_featured, "hostel_id": hostel_id}
 
+
 @admin_hostel_router.delete("/{hostel_id}")
 async def admin_delete_hostel(
     hostel_id: UUID,
@@ -223,42 +225,38 @@ async def admin_delete_hostel(
     _: User = Depends(get_current_admin)
 ):
     hostel = await hostel_service.get_hostel(hostel_id)
-
     if not hostel:
         raise HTTPException(status_code=404, detail="Hostel not found")
 
-    # Soft delete instead of hard delete
     hostel.is_deleted = True
     await hostel_service.session.commit()
     await hostel_service.session.refresh(hostel)
 
     return {"success": True, "message": "Hostel marked as deleted by admin"}
 
-#routes for amenities
+
+# ============================================================
+# AMENITY ROUTES
+# ============================================================
+
 amenity_router = APIRouter(prefix="/amenities", tags=["Amenities"])
 
-#route to create amenity
+
 @amenity_router.post("/", response_model=AmenityRead, status_code=201)
 async def create_amenity(
     payload: AmenityCreate,
     amenity_service: AmenityService = Depends(get_amenity_service),
     current_user: User = Depends(get_current_active_user)
 ):
-
     if current_user.role not in [UserRole.ADMIN, UserRole.LANDLORD]:
-        raise HTTPException(
-            status_code=403,
-            detail="Only landlords or admins can create amenities"
-        )
+        raise HTTPException(status_code=403, detail="Only landlords or admins can create amenities")
 
     amenity = await amenity_service.create_amenity(payload)
-
     await amenity_service.session.commit()
     await amenity_service.session.refresh(amenity)
-
     return amenity
 
-#route to list amenities
+
 @amenity_router.get("/", response_model=List[AmenityRead])
 async def list_amenities(
     amenity_service: AmenityService = Depends(get_amenity_service)
@@ -266,7 +264,7 @@ async def list_amenities(
     amenities = await amenity_service.list_amenities()
     return [AmenityRead.model_validate(a) for a in amenities]
 
-#route to add amenity to hostel
+
 @amenity_router.post("/{hostel_id}/{amenity_id}")
 async def add_amenity_to_hostel(
     hostel_id: UUID,
@@ -274,23 +272,17 @@ async def add_amenity_to_hostel(
     amenity_service: AmenityService = Depends(get_amenity_service),
     current_user: User = Depends(get_current_active_user)
 ):
-
     if current_user.role not in [UserRole.ADMIN, UserRole.LANDLORD]:
-        raise HTTPException(
-            status_code=403,
-            detail="Only landlords or admins can modify hostel amenities"
-        )
+        raise HTTPException(status_code=403, detail="Only landlords or admins can modify hostel amenities")
 
     success = await amenity_service.add_amenity_to_hostel(hostel_id, amenity_id)
-
     if not success:
         raise HTTPException(status_code=404, detail="Hostel not found")
 
     await amenity_service.session.commit()
-
     return {"message": "Amenity added to hostel"}
 
-#route to remove amenity from hostel
+
 @amenity_router.delete("/{hostel_id}/{amenity_id}")
 async def remove_amenity_from_hostel(
     hostel_id: UUID,
@@ -298,18 +290,12 @@ async def remove_amenity_from_hostel(
     amenity_service: AmenityService = Depends(get_amenity_service),
     current_user: User = Depends(get_current_active_user)
 ):
-
     if current_user.role not in [UserRole.ADMIN, UserRole.LANDLORD]:
-        raise HTTPException(
-            status_code=403,
-            detail="Only landlords or admins can modify hostel amenities"
-        )
+        raise HTTPException(status_code=403, detail="Only landlords or admins can modify hostel amenities")
 
     success = await amenity_service.remove_amenity_from_hostel(hostel_id, amenity_id)
-
     if not success:
         raise HTTPException(status_code=404, detail="Amenity not linked")
 
     await amenity_service.session.commit()
-
     return {"message": "Amenity removed from hostel"}
