@@ -17,14 +17,12 @@ class HostelService:
         text = f"{data}{previous_hash or ''}"
         return hashlib.sha256(text.encode()).hexdigest()
 
-    # ── INTERNAL: base query without blocks (fast, for public routes) ──
     def _base_query_no_blocks(self):
         return select(Hostel).options(
             selectinload(Hostel.amenities),
             selectinload(Hostel.images),
         )
 
-    # ── INTERNAL: base query with blocks (for admin routes) ──
     def _base_query_with_blocks(self):
         return select(Hostel).options(
             selectinload(Hostel.amenities),
@@ -71,12 +69,15 @@ class HostelService:
         return hostel
 
     async def update_hostel(self, hostel_id: UUID, **updates) -> Optional[Hostel]:
-        hostel = await self.get_hostel(hostel_id)
+        # Use fast query — blocks not needed for update
+        result = await self.session.execute(
+            self._base_query_no_blocks().where(Hostel.id == hostel_id)
+        )
+        hostel = result.scalar_one_or_none()
         if not hostel:
             return None
 
         changed_fields = []
-
         for field, value in updates.items():
             if hasattr(hostel, field) and getattr(hostel, field) != value:
                 setattr(hostel, field, value)
@@ -96,14 +97,10 @@ class HostelService:
             self.session.add(block)
 
         await self.session.flush()
-
-        result = await self.session.execute(
-            self._base_query_with_blocks().where(Hostel.id == hostel_id)
-        )
-        return result.scalar_one_or_none()
+        return hostel
 
     async def delete_hostel(self, hostel_id: UUID) -> bool:
-        hostel = await self.get_hostel(hostel_id)
+        hostel = await self.get_hostel(hostel_id, include_blocks=False)
         if not hostel:
             return False
 
@@ -124,11 +121,18 @@ class HostelService:
 
         return True
 
-    async def get_hostel(self, hostel_id: UUID, include_deleted: bool = False) -> Optional[Hostel]:
+    async def get_hostel(
+        self,
+        hostel_id: UUID,
+        include_deleted: bool = False,
+        include_blocks: bool = False,
+    ) -> Optional[Hostel]:
         query = (
             self._base_query_with_blocks()
-            .where(Hostel.id == hostel_id)
-        )
+            if include_blocks
+            else self._base_query_no_blocks()
+        ).where(Hostel.id == hostel_id)
+
         if not include_deleted:
             query = query.where(Hostel.is_deleted == False)
 
@@ -137,7 +141,7 @@ class HostelService:
 
     async def get_featured_hostels(self, limit: int = 6) -> List[Hostel]:
         query = (
-            self._base_query_no_blocks()          # ✅ no blocks needed
+            self._base_query_no_blocks()
             .where(
                 Hostel.is_featured == True,
                 Hostel.status == HostelStatus.APPROVED,
@@ -150,7 +154,7 @@ class HostelService:
         return result.scalars().all()
 
     async def set_featured(self, hostel_id: UUID, is_featured: bool) -> Optional[Hostel]:
-        hostel = await self.get_hostel(hostel_id)
+        hostel = await self.get_hostel(hostel_id, include_blocks=False)
         if not hostel:
             return None
 
@@ -176,11 +180,10 @@ class HostelService:
         offset: int = 0,
         status: Optional[HostelStatus] = None,
         include_deleted: bool = False,
-        include_blocks: bool = False,      # ✅ caller decides
-        include_count: bool = True,        # ✅ skip count for public route
+        include_blocks: bool = False,
+        include_count: bool = True,
     ) -> PaginatedHostels:
 
-        # ✅ Choose query based on whether blocks are needed
         base_query = (
             self._base_query_with_blocks()
             if include_blocks
@@ -201,7 +204,6 @@ class HostelService:
         result = await self.session.execute(data_query)
         hostels = result.scalars().all()
 
-        # ✅ Skip count query for public route — saves one round trip
         if include_count:
             count_query = select(func.count()).select_from(
                 select(Hostel.id)
@@ -217,7 +219,7 @@ class HostelService:
             total=total,
             limit=limit,
             offset=offset,
-            hostels=hostels,              # ✅ return raw — let router serialize once
+            hostels=hostels,
         )
 
     async def get_blockchain_history(self, hostel_id: UUID) -> List[dict]:
@@ -262,7 +264,7 @@ class AmenityService:
         return result.scalars().all()
 
     async def add_amenity_to_hostel(self, hostel_id: UUID, amenity_id: UUID) -> bool:
-        hostel = await self.hostel_service.get_hostel(hostel_id)
+        hostel = await self.hostel_service.get_hostel(hostel_id, include_blocks=False)
         if not hostel:
             return False
 
@@ -312,7 +314,7 @@ class HostelImageService:
         self.hostel_service = hostel_service
 
     async def add_image(self, data: HostelImageCreate) -> HostelImage:
-        hostel = await self.hostel_service.get_hostel(data.hostel_id)
+        hostel = await self.hostel_service.get_hostel(data.hostel_id, include_blocks=False)
         if not hostel:
             raise ValueError("Hostel does not exist")
 
