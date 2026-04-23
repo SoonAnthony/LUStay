@@ -7,7 +7,7 @@ from app.bookings.models import Reservation, ReservationStatus, Booking, Booking
 from app.bookings.schema import BookingUpdate
 from app.rooms.models import Room, RoomType, RoomStatus
 
-RESERVATION_TTL_SECONDS = 180  # 3 minutes
+RESERVATION_TTL_SECONDS = 60  # 1 minute
 
 # Helpers
 async def _get_room_and_type(session: AsyncSession, room_id: uuid.UUID) -> tuple[Room, RoomType]:
