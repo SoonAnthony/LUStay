@@ -47,3 +47,6 @@ build/
 frontend/**/build/
 
 frontend/**/.vite/
+
+# Ignore frontend client environment file
+frontend/client/.env
