@@ -18,8 +18,6 @@ class RoomService:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    
-    # RoomType Creation (Landlords Only)
     async def create_room_type(self, data: RoomTypeCreate, current_user: User) -> RoomType:
         if current_user.role == "ADMIN":
             raise PermissionError("Admins cannot create RoomTypes; only landlords can")
@@ -34,7 +32,6 @@ class RoomService:
         if hostel.owner_id != current_user.id:
             raise PermissionError("You do not own this hostel")
 
-        # Only one RoomType per name per hostel
         existing = (await self.session.exec(
             select(RoomType).where(RoomType.hostel_id == data.hostel_id, RoomType.name == data.name)
         )).first()
@@ -47,7 +44,6 @@ class RoomService:
         await self.session.refresh(room_type)
         return room_type
 
-    # Upload RoomType Images
     async def add_roomtype_images(self, room_type_id: UUID, files: List, current_user: User) -> List[RoomTypeImage]:
         room_type = await self.session.get(RoomType, room_type_id)
         if not room_type:
@@ -74,18 +70,14 @@ class RoomService:
 
         return [RoomTypeImageRead.model_validate(img) for img in images]
 
-
-    # Create Room (Admin or Landlord
     async def create_room(self, data: RoomCreate, current_user: User) -> Room:
         hostel = await self.session.get(Hostel, data.hostel_id)
         if not hostel:
             raise ValueError("Hostel does not exist")
 
-        # Landlord ownership check
         if current_user.role == "LANDLORD" and hostel.owner_id != current_user.id:
             raise PermissionError("You do not own this hostel")
 
-        # RoomType must exist for this hostel
         room_type = await self.session.get(RoomType, data.room_type_id)
         if not room_type or room_type.hostel_id != data.hostel_id:
             raise ValueError("Room type does not exist for this hostel")
@@ -104,7 +96,6 @@ class RoomService:
         room = result.scalar_one()
         return room
 
-    # List Rooms (public)
     async def list_rooms(self, hostel_id: Optional[UUID] = None, room_type_id: Optional[UUID] = None) -> List[Room]:
         query = select(Room).options(
             selectinload(Room.room_type).selectinload(RoomType.images)
@@ -114,12 +105,12 @@ class RoomService:
         if room_type_id:
             query = query.where(Room.room_type_id == room_type_id)
 
-        # ✅ bypass identity map cache, always read fresh from DB
-        await self.session.exec(select(Room).execution_options(populate_existing=True))
-        result = await self.session.exec(query)
+        # Single filtered query — no full table scan
+        result = await self.session.exec(
+            query.execution_options(populate_existing=True)
+        )
         return result.all()
 
-# Get Single Room (public)
     async def get_room(self, room_id: UUID) -> Room:
         result = await self.session.execute(
             select(Room)
@@ -127,14 +118,13 @@ class RoomService:
                 selectinload(Room.room_type).selectinload(RoomType.images)
             )
             .where(Room.id == room_id)
-            .execution_options(populate_existing=True)  # ✅
+            .execution_options(populate_existing=True)
         )
         room = result.scalar_one_or_none()
         if not room:
             raise HTTPException(status_code=404, detail="Room not found")
         return room
-    
-    # Update Room (Admin or Landlord)
+
     async def update_room(self, room_id: UUID, data: RoomUpdate, current_user: User) -> Room:
         room = await self.session.get(Room, room_id)
         if not room:
@@ -153,7 +143,6 @@ class RoomService:
         await self.session.refresh(room)
         return room
 
-    # Delete Room (Admin or Landlord)
     async def delete_room(self, room_id: UUID, current_user: User) -> None:
         room = await self.session.get(Room, room_id)
         if not room:
