@@ -30,14 +30,12 @@ class Settings(BaseSettings):
     MPESA_PASSKEY: str
     MPESA_CALLBACK_URL: str
     MPESA_ENV: str = "sandbox"
-
-
-
+    #Frontend configuration
+    FRONTEND_URL: str = "http://localhost:3000"
 
     @property
     def DATABASE_URL(self) -> str:
         return f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
-    
 
     class Config:
         env_file = Path(__file__).parent.parent.parent / ".env"
