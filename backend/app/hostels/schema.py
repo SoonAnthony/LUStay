@@ -52,7 +52,7 @@ class HostelUpdate(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     status: Optional[HostelStatus] = None
-    amenity_ids: Optional[List[UUID]] = None  # update amenities
+    amenity_ids: Optional[List[UUID]] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -76,9 +76,12 @@ class HostelRead(HostelBase):
     owner_id: UUID
     amenities: Optional[List[AmenityRead]] = []
     images: Optional[List["HostelImageRead"]] = []
-    blocks: Optional[List["HostelBlockRead"]] = []
+    # no blocks here — prevents lazy-load crash on public routes
 
     model_config = ConfigDict(from_attributes=True)
+
+class HostelAdminRead(HostelRead):
+    blocks: Optional[List["HostelBlockRead"]] = []
 
 class HostelFeaturedRead(BaseModel):
     id: UUID
@@ -102,6 +105,15 @@ class PaginatedHostels(BaseModel):
     hostels: List[HostelRead]
 
     model_config = ConfigDict(from_attributes=True)
+
+class PaginatedHostelsAdmin(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    hostels: List[HostelAdminRead]
+
+    model_config = ConfigDict(from_attributes=True)
+
 
 # ================================
 # Hostel Image Schemas
@@ -141,4 +153,3 @@ class HostelBlockRead(HostelBlockBase):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
-
