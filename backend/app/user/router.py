@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Response, Request
 from sqlmodel.ext.asyncio.session import AsyncSession
 from typing import List
 from uuid import UUID
@@ -19,29 +19,34 @@ from app.user.schema import (
     PaginatedUsers,
     UserSelfSchema,
     LoginSchema,
-    TokenResponse,
     LandlordRequestCreate,
     LandlordRequestRead,
-    LandlordRequestUpdate
+    LandlordRequestUpdate,
 )
 from app.core.security import hash_password
 from .models import User
-from .dependencies import (
-    get_current_active_user,
-    get_current_admin
-)
+from .dependencies import get_current_active_user, get_current_admin
 from app.user.utils import create_access_token, create_refresh_token, decode_refresh_token
-from app.core.tokens import decode_token, TokenType, create_token
+from app.core.tokens import decode_token, TokenType
 from app.core.mail_services import MailService
 from sqlalchemy.exc import IntegrityError
 from app.core.config import settings
 
 
-user_router = APIRouter(tags=["Users"])
+# ── COOKIE SETTINGS ───────────────────────────────────────────
+COOKIE_MAX_AGE_ACCESS  = 15 * 60            # 15 minutes
+COOKIE_MAX_AGE_REFRESH = 7 * 24 * 60 * 60  # 7 days
+COOKIE_SECURE          = False              # ✅ set True in production
+COOKIE_SAMESITE        = "lax"             # ✅ set "strict" in production
+
+
+user_router  = APIRouter(tags=["Users"])
 user_service = UserService()
 
-# SELF ROUTES (Regular User)
-@user_router.get("/me", response_model=UserSchema)
+
+# ── SELF ROUTES ───────────────────────────────────────────────
+
+@user_router.get("/me", response_model=UserSelfSchema)
 async def get_self(
     current_user: User = Depends(get_current_active_user)
 ):
@@ -59,8 +64,6 @@ async def register(
             payload,
             hashed_password=hash_password(payload.password)
         )
-
-    
         await session.commit()
         await session.refresh(user)
 
@@ -73,41 +76,14 @@ async def register(
             raise HTTPException(status_code=400, detail="Phone number already registered")
         else:
             raise HTTPException(status_code=400, detail="Duplicate value violates unique constraint")
-
     except Exception as e:
         await session.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to register user: {str(e)}")
 
-    token = create_token(
-        user_id=str(user.id),
-        type=TokenType.EMAIL_VERIFY,
-        expires_minutes=30
-    )
-    link = f"http://localhost:8000/auth/confirm?token={token}"
-
-    mailer = MailService(
-        settings.BREVO_API_KEY,
-        settings.BREVO_SENDER_EMAIL,
-        settings.BREVO_SENDER_NAME
-    )
-    await mailer.send_email(
-        to_email=user.email,
-        to_name=f"{user.first_name} {user.last_name}",
-        subject="Verify your LUStay account",
-        html_content=f"""
-            <p>Hello {user.first_name},</p>
-            <p>Thanks for registering! Please verify your email by clicking the link below:</p>
-            <p><a href="{link}">Verify Email</a></p>
-            <p>This link will expire in 30 minutes.</p>
-        """
-    )
-
     return UserSelfSchema.model_validate(user)
 
 
-
-
-@user_router.patch("/me", response_model=UserSchema)
+@user_router.patch("/me", response_model=UserSelfSchema)
 async def update_self(
     payload: UserUpdateSchema,
     session: AsyncSession = Depends(get_session),
@@ -118,7 +94,6 @@ async def update_self(
         await session.commit()
         await session.refresh(user)
         return user
-
     except IntegrityError as e:
         err_msg = str(e.orig)
         if "users_email_key" in err_msg or "ix_users_email" in err_msg:
@@ -129,7 +104,8 @@ async def update_self(
             raise HTTPException(status_code=400, detail="Duplicate value violates unique constraint")
 
 
-# EMAIL / PHONE / PASSWORD CHANGE REQUESTS
+# ── EMAIL / PHONE / PASSWORD CHANGE ───────────────────────────
+
 @user_router.post("/me/request-email-change")
 async def request_email_change(
     payload: RequestEmailChangeSchema,
@@ -160,30 +136,61 @@ async def request_password_change(
 ):
     await user_service.change_password(session, current_user.id, payload)
     await session.commit()
-    return {"message": "Password change request submitted. Check your OTP to confirm."}
+    return {"message": "Password change request submitted. Check your email to confirm."}
 
 
+# ── LOGIN ─────────────────────────────────────────────────────
 
-# POST /auth/login
-@user_router.post("/login", response_model=TokenResponse)
+@user_router.post("/login", response_model=UserSelfSchema)
 async def login(
     payload: LoginSchema,
+    response: Response,
     session: AsyncSession = Depends(get_session)
 ):
-    """
-    Authenticate a user and return access & refresh JWT tokens.
-    """
-    tokens = await user_service.login(session, payload)
-    return tokens
+    user = await user_service.login(session, payload)
 
-# POST /auth/refresh
-@user_router.post("/refresh", response_model=RefreshTokenResponse)
+    access_token  = create_access_token(data={"sub": str(user.id)})
+    refresh_token = create_refresh_token(data={"sub": str(user.id)})
+
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE,
+        max_age=COOKIE_MAX_AGE_ACCESS,
+        path="/",
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE,
+        max_age=COOKIE_MAX_AGE_REFRESH,
+        path="/",
+    )
+
+    return UserSelfSchema.model_validate(user)
+
+
+# ── REFRESH ───────────────────────────────────────────────────
+
+@user_router.post("/refresh", response_model=UserSelfSchema)
 async def refresh_token(
-    refresh_token: str = Body(..., embed=True),
+    request: Request,
+    response: Response,
     session: AsyncSession = Depends(get_session)
 ):
-    # Decode the refresh token
-    payload = decode_refresh_token(refresh_token)
+    token = request.cookies.get("refresh_token")
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No refresh token provided"
+        )
+
+    payload = decode_refresh_token(token)
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -197,32 +204,107 @@ async def refresh_token(
             detail="Invalid token payload"
         )
 
-    # Check that the user exists and is active
     user = await user_service.get_user(session, user_id)
-    if user.is_suspended:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is suspended"
-        )
-    if not user.is_verified:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account not verified"
-        )
 
-    # Generate new tokens
-    access_token = create_access_token(data={"sub": user_id})
+    if user.is_suspended:
+        raise HTTPException(status_code=403, detail="User account is suspended")
+    if not user.is_verified:
+        raise HTTPException(status_code=403, detail="User account not verified")
+
+    new_access_token  = create_access_token(data={"sub": user_id})
     new_refresh_token = create_refresh_token(data={"sub": user_id})
 
+    response.set_cookie(
+        key="access_token",
+        value=new_access_token,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE,
+        max_age=COOKIE_MAX_AGE_ACCESS,
+        path="/",
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=new_refresh_token,
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite=COOKIE_SAMESITE,
+        max_age=COOKIE_MAX_AGE_REFRESH,
+        path="/",
+    )
+
+    return UserSelfSchema.model_validate(user)
+
+
+# ── LOGOUT ────────────────────────────────────────────────────
+
+@user_router.post("/logout")
+async def logout(response: Response):
+    response.delete_cookie(key="access_token",  path="/")
+    response.delete_cookie(key="refresh_token", path="/")
+    return {"message": "Logged out successfully"}
+
+
+# ── CONFIRM ACTION ────────────────────────────────────────────
+
+@user_router.get("/confirm")  # ✅ was /auth/confirm — fixed to match frontend call
+async def confirm_action(
+    token: str,
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        payload = decode_token(token)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    user_id     = payload["user_id"]
+    action_type = payload["type"]
+
+    user = await session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if action_type == TokenType.EMAIL_VERIFY:
+        if user.is_verified:
+            raise HTTPException(status_code=400, detail="Email already verified")
+        user.is_verified = True
+
+    elif action_type == TokenType.PASSWORD_RESET:
+        if not user.pending_password:
+            raise HTTPException(status_code=400, detail="No pending password reset")
+        user.password_hash    = user.pending_password
+        user.pending_password = None
+
+    elif action_type == TokenType.EMAIL_CHANGE:
+        if not user.pending_email and not payload.get("new_email"):
+            raise HTTPException(status_code=400, detail="No pending email change")
+        user.email         = user.pending_email or payload.get("new_email")
+        user.pending_email = None
+        user.is_verified   = True
+
+    elif action_type == TokenType.PHONE_CHANGE:
+        if not user.pending_phone and not payload.get("new_phone"):
+            raise HTTPException(status_code=400, detail="No pending phone change")
+        user.phone_number  = user.pending_phone or payload.get("new_phone")
+        user.pending_phone = None
+
+    else:
+        raise HTTPException(status_code=400, detail="Unknown action type")
+
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+
     return {
-        "access_token": access_token,
-        "refresh_token": new_refresh_token,
-        "token_type": "bearer"
+        "message": f"{action_type} confirmed successfully",
+        "type": action_type,  # ✅ frontend uses this to show the right success message
     }
 
 
-# ADMIN ROUTES
+# ── ADMIN ROUTES ──────────────────────────────────────────────
+
 admin_router = APIRouter(prefix="/admin", tags=["Admin Users"])
+
 
 @admin_router.get("/users", response_model=PaginatedUsers)
 async def get_all_users(
@@ -248,7 +330,7 @@ async def get_user_admin(
 async def create_user(
     payload: UserCreateSchema,
     session: AsyncSession = Depends(get_session),
-    _: User = Depends(get_current_admin) 
+    _: User = Depends(get_current_admin)
 ):
     try:
         user = await user_service.create_user(
@@ -259,25 +341,14 @@ async def create_user(
         await session.commit()
         await session.refresh(user)
         return user
-
     except IntegrityError as e:
         err_msg = str(e.orig)
         if "users_email_key" in err_msg or "ix_users_email" in err_msg:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered"
-            )
+            raise HTTPException(status_code=400, detail="Email already registered")
         elif "users_phone_number_key" in err_msg or "ix_users_phone_number" in err_msg:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Phone number already registered"
-            )
+            raise HTTPException(status_code=400, detail="Phone number already registered")
         else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Duplicate value violates unique constraint"
-            )
-
+            raise HTTPException(status_code=400, detail="Duplicate value violates unique constraint")
 
 
 @admin_router.patch("/users/{user_id}", response_model=AdminUserSchema)
@@ -293,7 +364,6 @@ async def admin_update_user(
         await session.commit()
         await session.refresh(user)
         return user
-
     except IntegrityError as e:
         err_msg = str(e.orig)
         if "users_email_key" in err_msg or "ix_users_email" in err_msg:
@@ -314,26 +384,21 @@ async def delete_user(
     await user_service.delete_user(user)
     await session.delete(user)
     await session.commit()
-    return {
-        "success": True,
-        "message": "User deleted successfully",
-        "user_id": user_id
-    }
+    return {"success": True, "message": "User deleted successfully", "user_id": user_id}
 
 
-landlord_router = APIRouter(prefix="/me/landlord-requests", tags=["Landlord Requests"])
+# ── LANDLORD REQUEST ROUTES ───────────────────────────────────
+
+landlord_router  = APIRouter(prefix="/me/landlord-requests", tags=["Landlord Requests"])
 landlord_service = LandlordRequestService()
 
-# USER ROUTES
+
 @landlord_router.post("/", response_model=LandlordRequestRead, status_code=status.HTTP_201_CREATED)
 async def create_landlord_request(
     payload: LandlordRequestCreate,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Create a new landlord request (for a user).
-    """
     request = await landlord_service.create_request(session, current_user.id, payload)
     return LandlordRequestRead.model_validate(request)
 
@@ -343,10 +408,7 @@ async def get_my_requests(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Get all landlord requests submitted by the current user.
-    """
-    all_requests = await landlord_service.get_all_requests(session)
+    all_requests  = await landlord_service.get_all_requests(session)
     user_requests = [r for r in all_requests if r.user_id == current_user.id]
     return [LandlordRequestRead.model_validate(r) for r in user_requests]
 
@@ -357,26 +419,25 @@ async def get_my_request(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Get a specific landlord request by ID (must belong to the user).
-    """
     request = await landlord_service.get_request(session, request_id)
     if request.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to view this request")
     return LandlordRequestRead.model_validate(request)
 
 
-# ADMIN ROUTES
-admin_landlord_router = APIRouter(prefix="/admin/landlord-requests", tags=["Admin Landlord Requests"])
+# ── ADMIN LANDLORD REQUEST ROUTES ─────────────────────────────
+
+admin_landlord_router = APIRouter(
+    prefix="/admin/landlord-requests",
+    tags=["Admin Landlord Requests"]
+)
+
 
 @admin_landlord_router.get("/", response_model=List[LandlordRequestRead])
 async def get_all_requests(
     session: AsyncSession = Depends(get_session),
     _: User = Depends(get_current_admin)
 ):
-    """
-    Admin: Get all landlord requests.
-    """
     requests = await landlord_service.get_all_requests(session)
     return [LandlordRequestRead.model_validate(r) for r in requests]
 
@@ -388,58 +449,5 @@ async def review_request(
     session: AsyncSession = Depends(get_session),
     admin: User = Depends(get_current_admin)
 ):
-    """
-    Admin: Approve or reject a landlord request.
-    """
     request = await landlord_service.update_request(session, request_id, admin.id, payload)
     return LandlordRequestRead.model_validate(request)
-
-
-#confirmation links routes
-@user_router.get("/auth/confirm")
-async def confirm_action(token: str, session: AsyncSession = Depends(get_session)):
-    try:
-        payload = decode_token(token)  
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    user_id = payload["user_id"]
-    action_type = payload["type"]
-
-    user = await session.get(User, user_id)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # Replay protection: reject if already confirmed or no pending action
-    if action_type == TokenType.EMAIL_VERIFY:
-        if user.is_verified:
-            raise HTTPException(status_code=400, detail="Email already verified")
-        user.is_verified = True
-
-    elif action_type == TokenType.PASSWORD_RESET:
-        if not user.pending_password:
-            raise HTTPException(status_code=400, detail="No pending password reset")
-        user.password_hash = user.pending_password
-        user.pending_password = None  
-
-    elif action_type == TokenType.EMAIL_CHANGE:
-        if not user.pending_email and not payload.get("new_email"):
-            raise HTTPException(status_code=400, detail="No pending email change")
-        user.email = user.pending_email or payload.get("new_email")
-        user.pending_email = None  
-        user.is_verified = True
-
-    elif action_type == TokenType.PHONE_CHANGE:
-        if not user.pending_phone and not payload.get("new_phone"):
-            raise HTTPException(status_code=400, detail="No pending phone change")
-        user.phone_number = user.pending_phone or payload.get("new_phone")
-        user.pending_phone = None  
-
-    else:
-        raise HTTPException(status_code=400, detail="Unknown action type")
-
-    session.add(user)
-    await session.commit()
-    await session.refresh(user)
-
-    return {"message": f"{action_type} confirmed successfully"}
