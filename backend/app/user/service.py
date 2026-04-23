@@ -294,7 +294,6 @@ class UserService:
 
     # ── LOGIN ────────────────────────────────────────────────
     async def login(self, session: AsyncSession, payload: LoginSchema) -> User:
-        # ✅ use session.exec() — always returns proper User objects, never dicts
         result = await session.exec(select(User).where(User.email == payload.email))
         user = result.one_or_none()
 
@@ -338,7 +337,6 @@ class LandlordRequestService:
         user_id: uuid.UUID,
         payload: LandlordRequestCreate
     ):
-        # ✅ use session.exec() consistently
         result = await session.exec(
             select(LandlordRequest).where(
                 LandlordRequest.user_id == user_id,
@@ -355,9 +353,12 @@ class LandlordRequestService:
 
         new_request = LandlordRequest(
             user_id=user_id,
-            document_type=payload.document_type,
-            document_url=payload.document_url,
-            document_public_id=payload.document_public_id,
+            title_deed_url=payload.title_deed_url,
+            title_deed_public_id=payload.title_deed_public_id,
+            lease_agreement_url=payload.lease_agreement_url,
+            lease_agreement_public_id=payload.lease_agreement_public_id,
+            authorization_letter_url=payload.authorization_letter_url,
+            authorization_letter_public_id=payload.authorization_letter_public_id,
             status=RequestStatus.PENDING,
             submitted_at=datetime.now(timezone.utc)
         )
