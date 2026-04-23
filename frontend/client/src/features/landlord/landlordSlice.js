@@ -6,7 +6,7 @@ const BASE = "/api/v1";
 // ── THUNKS ────────────────────────────────────────────────────
 
 /**
- * Step 1: Upload a file to the backend → Cloudinary.
+ * Upload a single file to the backend → Cloudinary.
  * Returns { url, public_id }
  */
 export const uploadLandlordDocument = createAsyncThunk(
@@ -30,15 +30,29 @@ export const uploadLandlordDocument = createAsyncThunk(
 );
 
 /**
- * Step 2: Submit the landlord request with the Cloudinary values.
+ * Submit the landlord request with all three uploaded documents.
  */
 export const submitLandlordRequest = createAsyncThunk(
   "landlord/submitRequest",
-  async ({ document_type, document_url, document_public_id }, { rejectWithValue }) => {
+  async ({
+    title_deed_url,
+    title_deed_public_id,
+    lease_agreement_url,
+    lease_agreement_public_id,
+    authorization_letter_url,
+    authorization_letter_public_id,
+  }, { rejectWithValue }) => {
     try {
       const { data } = await axios.post(
         `${BASE}/me/landlord-requests/`,
-        { document_type, document_url, document_public_id },
+        {
+          title_deed_url,
+          title_deed_public_id,
+          lease_agreement_url,
+          lease_agreement_public_id,
+          authorization_letter_url,
+          authorization_letter_public_id,
+        },
         { withCredentials: true }
       );
       return data;
@@ -61,10 +75,10 @@ export const fetchMyLandlordRequests = createAsyncThunk(
         `${BASE}/me/landlord-requests/`,
         {
           withCredentials: true,
-          headers: { "Cache-Control": "no-cache" },  // ← force fresh response
+          headers: { "Cache-Control": "no-cache" },
         }
       );
-      return Array.isArray(data) ? data : [];  // ← guard against non-array
+      return Array.isArray(data) ? data : [];
     } catch (err) {
       return rejectWithValue(
         err.response?.data?.detail || "Failed to fetch requests"
@@ -78,23 +92,16 @@ export const fetchMyLandlordRequests = createAsyncThunk(
 const landlordSlice = createSlice({
   name: "landlord",
   initialState: {
-    // Upload step
-    uploading:     false,
-    uploadError:   null,
-    uploadedDoc:   null,   // { url, public_id } after successful upload
-
-    // Submit step
-    submitting:    false,
-    submitError:   null,
-    submitSuccess: false,
-
-    // My requests
-    requests:      [],
+    uploading:       false,
+    uploadError:     null,
+    uploadedDoc:     null,
+    submitting:      false,
+    submitError:     null,
+    submitSuccess:   false,
+    requests:        [],
     requestsLoading: false,
     requestsError:   null,
-
-    // Latest/active request (derived from requests list)
-    latestRequest: null,
+    latestRequest:   null,
   },
   reducers: {
     clearUpload(state) {
@@ -142,7 +149,6 @@ const landlordSlice = createSlice({
       .addCase(submitLandlordRequest.fulfilled, (state, action) => {
         state.submitting    = false;
         state.submitSuccess = true;
-        // Add newly submitted request to the top of the list
         state.requests      = [action.payload, ...state.requests];
         state.latestRequest = action.payload;
       })
@@ -160,7 +166,6 @@ const landlordSlice = createSlice({
       .addCase(fetchMyLandlordRequests.fulfilled, (state, action) => {
         state.requestsLoading = false;
         state.requests        = action.payload;
-        // Derive the latest request (most recently submitted)
         state.latestRequest   = action.payload.length
           ? [...action.payload].sort(
               (a, b) => new Date(b.submitted_at) - new Date(a.submitted_at)
