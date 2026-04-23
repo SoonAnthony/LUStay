@@ -5,11 +5,11 @@ import cloudinary.uploader
 from app.db.engine import get_session
 from app.user.dependencies import get_current_active_user
 from app.user.models import User
-from app.user.schema import UserSchema
+from app.user.schema import UserSchema, UserSelfSchema
 
 profile_image_router = APIRouter(prefix="/users", tags=["User Profile"])
 
-@profile_image_router.post("/me/profile-image", response_model=UserSchema)
+@profile_image_router.post("/me/profile-image", response_model=UserSelfSchema)
 async def upload_profile_image(
     file: UploadFile = File(...),
     session: AsyncSession = Depends(get_session),
@@ -51,7 +51,7 @@ async def upload_profile_image(
     return UserSchema.model_validate(current_user)
 
 
-@profile_image_router.delete("/me/profile-image", response_model=UserSchema)
+@profile_image_router.delete("/me/profile-image", response_model=UserSelfSchema)
 async def delete_profile_image(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_active_user)
