@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { useSelector } from "react-redux";
 import api from "../api/axios";
 import Footer from "../components/Footer";
-import { useAuth } from "../context/AuthContext";
 
 const SkeletonBlock = ({ h = "h-4", w = "w-full" }) => (
   <div className={`animate-pulse bg-gray-100 ${h} ${w} rounded-lg`} />
@@ -12,7 +12,8 @@ const RoomDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated } = useAuth();
+
+  const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
 
   const [room, setRoom] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -22,7 +23,16 @@ const RoomDetails = () => {
   const [isShared, setIsShared] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
 
+  // ✅ Redirect to login immediately, preserving current URL to return to after login
   useEffect(() => {
+    if (!isAuthenticated) {
+      navigate("/login", { state: { from: location }, replace: true });
+    }
+  }, [isAuthenticated, navigate, location]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return; // don't fetch if not authed
+
     const fetchRoom = async () => {
       try {
         const res = await api.get(`/rooms/${id}`);
@@ -35,7 +45,9 @@ const RoomDetails = () => {
     };
 
     fetchRoom();
-  }, [id]);
+  }, [id, isAuthenticated]);
+
+  if (!isAuthenticated) return null; // prevent flash before redirect
 
   if (loading) {
     return (
@@ -56,20 +68,13 @@ const RoomDetails = () => {
 
   if (!room) {
     return (
-      <div className="pt-28 text-center text-red-500">
-        Room not found
-      </div>
+      <div className="pt-28 text-center text-red-500">Room not found</div>
     );
   }
 
   const isAvailable = room.status !== "FULLY_OCCUPIED";
 
   const handleBooking = async () => {
-    if (!isAuthenticated) {
-      navigate("/login", { state: { from: location } });
-      return;
-    }
-
     if (!semester || !phoneNumber) {
       alert("Please fill all fields");
       return;
@@ -113,9 +118,7 @@ const RoomDetails = () => {
             <h1 className="text-2xl font-semibold text-gray-900">
               Room {room.room_number}
             </h1>
-            <p className="text-sm text-gray-500 mt-1">
-              {room.room_type?.name}
-            </p>
+            <p className="text-sm text-gray-500 mt-1">{room.room_type?.name}</p>
           </div>
 
           {/* IMAGE */}
@@ -129,9 +132,7 @@ const RoomDetails = () => {
 
           {/* DESCRIPTION */}
           <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-4">
-            <p className="text-xs text-gray-400 mb-2 uppercase tracking-wide">
-              About
-            </p>
+            <p className="text-xs text-gray-400 mb-2 uppercase tracking-wide">About</p>
             <p className="text-sm text-gray-700 leading-relaxed">
               {room.room_type?.description || "No description available."}
             </p>
@@ -139,36 +140,23 @@ const RoomDetails = () => {
 
           {/* PRICING */}
           <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-4">
-            <p className="text-xs text-gray-400 mb-3 uppercase tracking-wide">
-              Pricing
-            </p>
-
+            <p className="text-xs text-gray-400 mb-3 uppercase tracking-wide">Pricing</p>
             <div className="flex gap-8">
               <div>
-                <p className="text-xs text-gray-400 mb-1">
-                  Single occupancy
-                </p>
+                <p className="text-xs text-gray-400 mb-1">Single occupancy</p>
                 <p className="text-lg font-semibold text-gray-900">
                   KES {room.room_type?.price_single?.toLocaleString()}
                 </p>
               </div>
-
               <div className="w-px bg-gray-100"></div>
-
               <div>
-                <p className="text-xs text-gray-400 mb-1">
-                  Shared occupancy
-                </p>
+                <p className="text-xs text-gray-400 mb-1">Shared occupancy</p>
                 <p className="text-lg font-semibold text-gray-900">
                   KES{" "}
                   {Math.round(
-                    room.room_type?.price_double /
-                      room.room_type?.capacity
+                    room.room_type?.price_double / room.room_type?.capacity
                   ).toLocaleString()}
-                  <span className="text-sm font-normal text-gray-400">
-                    {" "}
-                    / person
-                  </span>
+                  <span className="text-sm font-normal text-gray-400"> / person</span>
                 </p>
               </div>
             </div>
@@ -176,17 +164,10 @@ const RoomDetails = () => {
 
           {/* STATUS */}
           <div className="mb-6">
-            <p className="text-sm font-medium text-gray-700 mb-2">
-              Status
-            </p>
-
+            <p className="text-sm font-medium text-gray-700 mb-2">Status</p>
             <span
               className={`inline-block px-4 py-1 text-xs rounded-full font-medium
-                ${
-                  isAvailable
-                    ? "bg-lime-50 text-lime-600"
-                    : "bg-red-50 text-red-400"
-                }`}
+                ${isAvailable ? "bg-lime-50 text-lime-600" : "bg-red-50 text-red-400"}`}
             >
               {isAvailable ? "Available" : "Fully Occupied"}
             </span>
@@ -199,11 +180,8 @@ const RoomDetails = () => {
                 Booking details
               </p>
 
-              {/* Semester */}
               <div className="mb-4">
-                <label className="text-sm text-gray-600 mb-1 block">
-                  Semester
-                </label>
+                <label className="text-sm text-gray-600 mb-1 block">Semester</label>
                 <select
                   value={semester}
                   onChange={(e) => setSemester(e.target.value)}
@@ -215,19 +193,15 @@ const RoomDetails = () => {
                 </select>
               </div>
 
-              {/* Shared */}
               <div className="mb-4 flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={isShared}
                   onChange={(e) => setIsShared(e.target.checked)}
                 />
-                <label className="text-sm text-gray-600">
-                  Shared room
-                </label>
+                <label className="text-sm text-gray-600">Shared room</label>
               </div>
 
-              {/* Phone */}
               <div>
                 <label className="text-sm text-gray-600 mb-1 block">
                   Phone Number (M-Pesa)
@@ -243,7 +217,7 @@ const RoomDetails = () => {
             </div>
           )}
 
-          {/* 🔥 MODERN BUTTON (BACK IN PAGE) */}
+          {/* BUTTON */}
           <div className="mt-6">
             <button
               onClick={handleBooking}
@@ -265,7 +239,6 @@ const RoomDetails = () => {
 
         </div>
       </div>
-
       <Footer />
     </>
   );

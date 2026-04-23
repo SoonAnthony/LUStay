@@ -16,19 +16,26 @@ const HostelDetails = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const fetchData = async () => {
       try {
-        const hostelRes = await api.get(`/hostels/${id}`);
-        const roomsRes = await api.get(`/rooms/?hostel_id=${id}&t=${Date.now()}`);
+        const [hostelRes, roomsRes] = await Promise.all([
+          api.get(`/hostels/${id}`, { signal: controller.signal }),
+          api.get(`/rooms/?hostel_id=${id}`, { signal: controller.signal }),
+        ]);
         setHostel(hostelRes.data);
         setRooms(roomsRes.data);
+        setLoading(false);
       } catch (err) {
+        if (err.name === "CanceledError") return;
         console.error("Error loading hostel:", err);
-      } finally {
         setLoading(false);
       }
     };
+
     fetchData();
+    return () => controller.abort();
   }, [id]);
 
   if (loading) {
@@ -183,7 +190,6 @@ const HostelDetails = () => {
                       className="w-full h-44 object-cover"
                     />
                   )}
-
                   <div className="p-5">
                     <div className="flex justify-between items-start mb-1">
                       <h3 className="text-base font-semibold text-gray-900">{type.name} Room</h3>
@@ -191,12 +197,9 @@ const HostelDetails = () => {
                         {type.capacity} person{type.capacity > 1 ? "s" : ""}
                       </span>
                     </div>
-
                     {type.description && (
                       <p className="text-xs text-gray-500 leading-relaxed mb-4">{type.description}</p>
                     )}
-
-                    {/* PRICING */}
                     <div className="flex gap-4 mb-4">
                       <div>
                         <p className="text-xs text-gray-400">Single</p>
@@ -208,8 +211,6 @@ const HostelDetails = () => {
                         <p className="text-sm font-semibold text-gray-800">KES {type.price_double.toLocaleString()}</p>
                       </div>
                     </div>
-
-                    {/* AVAILABILITY BADGES */}
                     <div className="flex flex-wrap gap-2 mb-4">
                       <span className="text-xs font-medium bg-lime-50 text-lime-600 px-2.5 py-1 rounded-full">
                         {type.available} available
@@ -225,8 +226,6 @@ const HostelDetails = () => {
                         </span>
                       )}
                     </div>
-
-                    {/* CTA */}
                     <button
                       onClick={() => navigate(`/room-types/${type.id}`)}
                       disabled={type.available === 0}
@@ -246,7 +245,6 @@ const HostelDetails = () => {
 
         </div>
       </div>
-
       <Footer />
     </>
   );

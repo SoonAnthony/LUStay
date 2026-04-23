@@ -1,59 +1,110 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useDispatch, useSelector } from "react-redux";
+import { loginUser } from "../features/auth/authSlice";
 import Footer from "../components/Footer";
 
 const Login = () => {
-  const { login } = useAuth();
+  const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const { error } = useSelector((state) => state.auth);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [flashMessage, setFlashMessage] = useState(null);
+  const [flashType, setFlashType] = useState("success");
 
   const from = location.state?.from?.pathname || "/";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    setLoading(true);
+    setSubmitting(true);
+
     try {
-      await login(email, password);
-      navigate(from, { replace: true });
+      const resultAction = await dispatch(loginUser({ email, password }));
+
+      if (loginUser.fulfilled.match(resultAction)) {
+        setFlashType("success");
+        setFlashMessage("Login Successful 🎉");
+
+        setTimeout(() => {
+          if (from && from !== "/") {
+            navigate(from, { replace: true });
+          } else {
+            const raw = sessionStorage.getItem("bookings_intent");
+            if (raw) {
+              navigate("/bookings", { replace: true });
+            } else {
+              navigate("/", { replace: true });
+            }
+          }
+        }, 1500);
+      }
+
+      if (loginUser.rejected.match(resultAction)) {
+        setFlashType("error");
+        setFlashMessage("Invalid credentials. Try again.");
+        setTimeout(() => setFlashMessage(null), 3000);
+        setSubmitting(false);
+      }
     } catch (err) {
-      console.error(err);
-      setError(
-        err?.response?.data?.detail ||
-          "Invalid email or password. Please try again."
-      );
-    } finally {
-      setLoading(false);
+      setFlashType("error");
+      setFlashMessage("Something went wrong. Please try again.");
+      setTimeout(() => setFlashMessage(null), 3000);
+      setSubmitting(false);
     }
   };
 
   return (
     <>
+      {/* FLASH MESSAGE */}
+      {flashMessage && (
+        <div
+          className={`fixed top-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-xl text-sm font-medium
+            ${flashType === "success"
+              ? "bg-white border border-green-100 text-green-600 shadow-green-100"
+              : "bg-white border border-red-100 text-red-500 shadow-red-100"
+            }`}
+        >
+          {flashType === "success" ? (
+            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-green-50">
+              <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 16 16">
+                <path d="M3 8l3.5 3.5L13 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </span>
+          ) : (
+            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-red-50">
+              <svg className="w-3.5 h-3.5 text-red-400" fill="none" viewBox="0 0 16 16">
+                <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </span>
+          )}
+          {flashMessage}
+        </div>
+      )}
+
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 pt-16">
         <div className="w-full max-w-sm">
 
-          {/* CARD */}
           <div className="bg-white border border-gray-100 rounded-2xl p-8">
 
             {/* HEADER */}
             <div className="mb-7">
-              <h1 className="text-2xl font-semibold text-gray-900">Welcome back</h1>
-              <p className="text-sm text-gray-400 mt-1">Login to book your hostel room</p>
+              <h1 className="text-2xl font-semibold text-gray-900">
+                Welcome back
+              </h1>
+              <p className="text-sm text-gray-400 mt-1">
+                Login to book your hostel room
+              </p>
             </div>
 
             {/* ERROR */}
-            {error && (
-              <div className="flex items-start gap-2 bg-red-50 border border-red-100 text-red-500 text-sm px-3 py-2.5 rounded-xl mb-5">
-                <svg className="w-4 h-4 mt-0.5 shrink-0" fill="none" viewBox="0 0 16 16">
-                  <path d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM8 5v3.5M8 10.5v.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                </svg>
+            {error && !submitting && (
+              <div className="bg-red-50 border border-red-100 text-red-500 text-sm px-3 py-2 rounded-xl mb-5">
                 {error}
               </div>
             )}
@@ -63,7 +114,7 @@ const Login = () => {
 
               {/* EMAIL */}
               <div>
-                <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                <label className="text-xs font-medium text-gray-500 uppercase">
                   Email
                 </label>
                 <input
@@ -71,7 +122,8 @@ const Login = () => {
                   placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full mt-1.5 px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition bg-gray-50 placeholder-gray-300"
+                  disabled={submitting}
+                  className="w-full mt-1 px-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-400 outline-none disabled:opacity-50"
                   required
                 />
               </div>
@@ -79,13 +131,13 @@ const Login = () => {
               {/* PASSWORD */}
               <div>
                 <div className="flex justify-between items-center">
-                  <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  <label className="text-xs font-medium text-gray-500 uppercase">
                     Password
                   </label>
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="text-xs text-blue-400 hover:text-blue-500 transition-colors"
+                    className="text-xs text-blue-500"
                   >
                     {showPassword ? "Hide" : "Show"}
                   </button>
@@ -95,7 +147,8 @@ const Login = () => {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full mt-1.5 px-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition bg-gray-50 placeholder-gray-300"
+                  disabled={submitting}
+                  className="w-full mt-1 px-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-400 outline-none disabled:opacity-50"
                   required
                 />
               </div>
@@ -103,39 +156,34 @@ const Login = () => {
               {/* SUBMIT */}
               <button
                 type="submit"
-                disabled={loading}
-                className={`w-full py-2.5 rounded-xl text-sm font-medium text-white transition-colors mt-2
-                  ${loading
-                    ? "bg-blue-300 cursor-not-allowed"
+                disabled={submitting}
+                className={`w-full py-2.5 rounded-xl text-sm font-medium text-white transition flex items-center justify-center gap-2
+                  ${submitting
+                    ? "bg-blue-400 cursor-not-allowed"
                     : "bg-blue-500 hover:bg-blue-600"
                   }`}
               >
-                {loading ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                {submitting ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
                     </svg>
                     Logging in...
-                  </span>
-                ) : "Login"}
+                  </>
+                ) : (
+                  "Login"
+                )}
               </button>
 
             </form>
 
-            {/* DIVIDER */}
-            <div className="flex items-center gap-3 my-5">
-              <div className="flex-1 h-px bg-gray-100"></div>
-              <span className="text-xs text-gray-300">or</span>
-              <div className="flex-1 h-px bg-gray-100"></div>
-            </div>
-
-            {/* REGISTER LINK */}
-            <p className="text-center text-sm text-gray-400">
+            {/* REGISTER */}
+            <p className="text-center text-sm text-gray-400 mt-5">
               Don't have an account?{" "}
               <button
                 onClick={() => navigate("/register")}
-                className="text-blue-400 hover:text-blue-500 font-medium transition-colors"
+                className="text-blue-500 font-medium"
               >
                 Register
               </button>
@@ -143,7 +191,6 @@ const Login = () => {
 
           </div>
 
-          {/* BELOW CARD */}
           <p className="text-center text-xs text-gray-300 mt-5">
             By logging in you agree to our terms and privacy policy.
           </p>

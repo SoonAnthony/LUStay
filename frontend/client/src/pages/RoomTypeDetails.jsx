@@ -21,19 +21,26 @@ const RoomTypeDetails = () => {
   const [selectedRoom, setSelectedRoom] = useState(null);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const fetchData = async () => {
       try {
-        const roomsRes = await api.get(`/rooms/?room_type_id=${id}&t=${Date.now()}`);
+        const roomsRes = await api.get(`/rooms/?room_type_id=${id}`, {
+          signal: controller.signal,
+        });
         const data = roomsRes.data;
         if (data.length > 0) setRoomType(data[0].room_type);
         setRooms(data);
+        setLoading(false);
       } catch (err) {
+        if (err.name === "CanceledError") return;
         console.error("Error loading room type:", err);
-      } finally {
         setLoading(false);
       }
     };
+
     fetchData();
+    return () => controller.abort();
   }, [id]);
 
   const totalRooms = rooms.length;
@@ -170,9 +177,7 @@ const RoomTypeDetails = () => {
                 return (
                   <button
                     key={room.id}
-                    onClick={() => {
-                      if (!isFullyOccupied) setSelectedRoom(room);
-                    }}
+                    onClick={() => { if (!isFullyOccupied) setSelectedRoom(room); }}
                     disabled={isFullyOccupied}
                     className={`p-4 rounded-xl border text-center transition-all duration-150
                       ${isFullyOccupied
@@ -185,7 +190,6 @@ const RoomTypeDetails = () => {
                       }`}
                   >
                     <p className="text-sm font-medium text-gray-800 mb-2">Room {room.room_number}</p>
-
                     <span className={`inline-block text-xs font-medium px-3 py-1 rounded-full
                       ${isFullyOccupied
                         ? "bg-red-50 text-red-400"
@@ -195,7 +199,6 @@ const RoomTypeDetails = () => {
                       }`}>
                       {isFullyOccupied ? "Occupied" : isPartial ? "Partial" : "Available"}
                     </span>
-
                     {isPartial && slotsLeft !== null && (
                       <p className="text-xs text-gray-400 mt-2">
                         {slotsLeft} slot{slotsLeft !== 1 ? "s" : ""} left

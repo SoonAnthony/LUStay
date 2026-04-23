@@ -1,73 +1,76 @@
 import axios from "axios";
-import {
-  getAccessToken,
-  setAccessToken,
-  clearAccessToken,
-} from "../context/AuthContext";
+import { store } from "../app/store";
+import { logout, setCredentials } from "../features/auth/authSlice";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1",
+  baseURL: import.meta.env.VITE_API_URL,
   withCredentials: true,
-  headers: {
-    "Cache-Control": "no-cache",
-    "Pragma": "no-cache",
-  },
+  headers: { "Content-Type": "application/json" },
 });
 
-// ── REQUEST INTERCEPTOR ─────────────────────────────────────
-api.interceptors.request.use((config) => {
-  const token = getAccessToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// ── RESPONSE INTERCEPTOR (AUTO REFRESH) ─────────────────────
 let isRefreshing = false;
 let failedQueue = [];
 
-const processQueue = (error, token = null) => {
+const processQueue = (error) => {
   failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
+    error ? prom.reject(error) : prom.resolve();
   });
   failedQueue = [];
 };
 
 api.interceptors.response.use(
-  (response) => response,
+  (res) => res,
 
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    const is401          = error.response?.status === 401;
+    const isRefresh      = originalRequest.url?.includes("/users/refresh");
+    const isLogin        = originalRequest.url?.includes("/users/login");
+    const isMe           = originalRequest.url?.includes("/users/me");
+    const alreadyRetried = originalRequest._retry;
+
+    // ── Refresh itself failed → logout ────────────────
+    if (is401 && isRefresh) {
+      store.dispatch(logout());
+      return Promise.reject(error);
+    }
+
+    // ── Don't retry login ────────────────
+    if (is401 && isLogin) {
+      return Promise.reject(error);
+    }
+
+    // ── 401 on /users/me or any protected route → try refresh ────────────────
+    if (is401 && !alreadyRetried) {
+      originalRequest._retry = true;
+
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
-        }).then((token) => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          return api(originalRequest);
-        });
+        })
+          .then(() => api(originalRequest))
+          .catch((err) => Promise.reject(err));
       }
 
-      originalRequest._retry = true;
       isRefreshing = true;
 
       try {
-        const { data } = await api.post("/auth/refresh");
-        const newToken = data.access_token;
-        setAccessToken(newToken);
-        processQueue(null, newToken);
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        const res = await api.post("/users/refresh");
+
+        store.dispatch(setCredentials({
+          user: res.data.user,
+          access_token: res.data.access_token,
+          refresh_token: res.data.refresh_token,
+        }));
+
+        processQueue(null);
         return api(originalRequest);
+
       } catch (refreshError) {
-        clearAccessToken();
-        processQueue(refreshError, null);
-        window.location.href = "/login";
+        processQueue(refreshError);
+        store.dispatch(logout());
+        // ❌ Removed: window.location.href = "/login"
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

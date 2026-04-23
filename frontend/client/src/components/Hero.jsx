@@ -19,6 +19,7 @@ const Hero = () => {
                 <p className="mt-4 text-gray-200 text-lg">
                     Discover and compare student-friendly hostels around your campus with ease.
                 </p>
+
                 {/* SEARCH BAR */}
                 <div className="mt-6 flex items-center bg-white rounded-xl shadow-lg overflow-hidden w-full">
 
@@ -39,7 +40,7 @@ const Hero = () => {
                         Search
                     </button>
 
-                    </div>
+                </div>
 
                 {/* CTA BUTTON */}
                 <div className="mt-6">
@@ -51,14 +52,20 @@ const Hero = () => {
                     </Link>
                 </div>
             </div>
+
             {/* RIGHT SIDE */}
             <div className="flex justify-center">
-                <img
-                    src={heroImage}
-                    alt="Students Hostel"
-                    className="w-full max-w-md md:max-w-lg object-contain"
-                />
+                <div className="relative w-full max-w-md md:max-w-lg">
+                    <img
+                        src={heroImage}
+                        alt="Students Hostel"
+                        className="w-full object-cover rounded-3xl shadow-2xl"
+                    />
+                    {/* fade left edge into gradient */}
+                    <div className="absolute inset-0 rounded-3xl bg-linear-to-r from-cyan-800 via-transparent to-transparent opacity-60" />
+                </div>
             </div>
+
         </div>
     </section>
   );
