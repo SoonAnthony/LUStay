@@ -1,8 +1,11 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, APIRouter
+from starlette.middleware.base import BaseHTTPMiddleware
 from .db.engine import engine
 from sqlalchemy import text
 from app.user.router import user_router, admin_router, landlord_router, admin_landlord_router
+from app.user.image_router import profile_image_router
+from app.user.document_router import document_router
 from app.hostels.router import hostel_router, admin_hostel_router, amenity_router
 from app.hostels.image_router import image_router
 from app.core.cloudinary import cloudinary
@@ -11,56 +14,69 @@ from app.bookings.router import bookings_router
 from app.payments.router import payments_router
 from fastapi.middleware.cors import CORSMiddleware
 
+
+# ── SECURITY HEADERS MIDDLEWARE ───────────────────────────────
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"]  = "nosniff"
+        response.headers["X-Frame-Options"]         = "DENY"
+        response.headers["Referrer-Policy"]         = "strict-origin-when-cross-origin"
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
+            "style-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
+            "img-src 'self' data: https://res.cloudinary.com fastapi.tiangolo.com; "
+            "connect-src 'self' http://localhost:8000 http://127.0.0.1:8000"
+        )
+        return response
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # startup logic
     print("Connecting to the database...")
     async with engine.begin() as conn:
-         await conn.execute(text("SELECT 1"))
+        await conn.execute(text("SELECT 1"))
     print("Connected to the database.")
     yield
-    # shutdown logic
     print("Disconnecting from the database...")
-    
     print("Disconnected from the database.")
+
 
 app = FastAPI(lifespan=lifespan)
 
+# ✅ Security headers
+app.add_middleware(SecurityHeadersMiddleware)
+
+# ✅ CORS — must allow credentials for cookies to work
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-    ],
-    allow_credentials=True,
+    allow_origins=["http://localhost:3000"],  # ✅ explicit origin, not "*"
+    allow_credentials=True,                   # ✅ required for cookies
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-# ✅ Create API v1 router
+# ── ROUTERS ───────────────────────────────────────────────────
 api_v1_router = APIRouter(prefix="/api/v1")
 
-# ✅ Register domain routers under v1
-# Users
 api_v1_router.include_router(user_router, prefix="/users", tags=["Users"])
-api_v1_router.include_router(admin_router)  # internal prefix /admin
-api_v1_router.include_router(landlord_router, tags=["Landlord Requests"])  # remove /users prefix
-api_v1_router.include_router(admin_landlord_router)  # internal prefix /admin/landlord-requests
+api_v1_router.include_router(admin_router)
+api_v1_router.include_router(landlord_router, tags=["Landlord Requests"])
+api_v1_router.include_router(admin_landlord_router)
+api_v1_router.include_router(profile_image_router)
+api_v1_router.include_router(document_router)
 
-# Hostels
 api_v1_router.include_router(hostel_router)
 api_v1_router.include_router(admin_hostel_router)
 api_v1_router.include_router(image_router)
 api_v1_router.include_router(amenity_router)
 
-#Rooms
 api_v1_router.include_router(room_landlord_router)
-api_v1_router.include_router(room_admin_router) 
+api_v1_router.include_router(room_admin_router)
 api_v1_router.include_router(room_public_router)
 
-#Bookings
 api_v1_router.include_router(bookings_router)
-#Payments
 api_v1_router.include_router(payments_router)
-# ✅ Register version router in app
+
 app.include_router(api_v1_router)
