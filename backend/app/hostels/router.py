@@ -6,15 +6,16 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.db.engine import get_session
 from app.hostels.service import HostelService, AmenityService
-from app.hostels.schema import HostelCreate, HostelFeaturedRead, HostelUpdate, HostelRead, PaginatedHostels, AmenityCreate, AmenityRead, HostelCreateResponse
+from app.hostels.schema import (
+    HostelCreate, HostelFeaturedRead, HostelUpdate, HostelRead, HostelAdminRead,
+    PaginatedHostels, PaginatedHostelsAdmin,
+    AmenityCreate, AmenityRead, HostelCreateResponse
+)
 from .models import Hostel, HostelStatus
 from app.user.models import User, UserRole
 from app.user.dependencies import get_current_active_user, get_current_admin
 
 
-# -------------------------------------------------
-# Dependencies
-# -------------------------------------------------
 async def get_hostel_service(
     session: AsyncSession = Depends(get_session)
 ) -> HostelService:
@@ -27,9 +28,6 @@ async def get_amenity_service(
     return AmenityService(session, hostel_service)
 
 
-# -------------------------------------------------
-# Routers
-# -------------------------------------------------
 hostel_router = APIRouter(prefix="/hostels", tags=["Hostels"])
 admin_hostel_router = APIRouter(prefix="/admin/hostels", tags=["Admin Hostels"])
 
@@ -50,7 +48,6 @@ async def get_featured_hostels(
 async def get_public_hostels(
     hostel_service: HostelService = Depends(get_hostel_service)
 ):
-    # ✅ No blocks, no count query — fastest possible public listing
     result = await hostel_service.get_all_hostels(
         status=HostelStatus.APPROVED,
         include_blocks=False,
@@ -64,14 +61,15 @@ async def get_hostel(
     hostel_id: UUID,
     hostel_service: HostelService = Depends(get_hostel_service)
 ):
-    hostel = await hostel_service.get_hostel(hostel_id)
+    # include_blocks=False — faster, blocks not needed for public view
+    hostel = await hostel_service.get_hostel(hostel_id, include_blocks=False)
     if not hostel:
         raise HTTPException(status_code=404, detail="Hostel not found")
     return HostelRead.model_validate(hostel)
 
 
 # ============================================================
-# LANDLORD / ADMIN ROUTES
+# LANDLORD / OWNER ROUTES
 # ============================================================
 
 @hostel_router.post("/", response_model=HostelCreateResponse, status_code=201)
@@ -113,7 +111,8 @@ async def update_hostel(
 ):
     updates = payload.model_dump(exclude_unset=True)
 
-    hostel = await hostel_service.get_hostel(hostel_id)
+    # Single fetch — reused for auth check, no second fetch inside service
+    hostel = await hostel_service.get_hostel(hostel_id, include_blocks=False)
     if not hostel:
         raise HTTPException(status_code=404, detail="Hostel not found")
     if current_user.role != UserRole.ADMIN and hostel.owner_id != current_user.id:
@@ -127,7 +126,6 @@ async def update_hostel(
 
     await hostel_service.session.commit()
     await hostel_service.session.refresh(updated_hostel)
-
     return HostelRead.model_validate(updated_hostel)
 
 
@@ -138,7 +136,7 @@ async def delete_hostel(
     current_user: User = Depends(get_current_active_user)
 ):
     try:
-        hostel = await hostel_service.get_hostel(hostel_id)
+        hostel = await hostel_service.get_hostel(hostel_id, include_blocks=False)
         if not hostel:
             raise HTTPException(status_code=404, detail="Hostel not found")
         if current_user.role != UserRole.ADMIN and hostel.owner_id != current_user.id:
@@ -164,7 +162,7 @@ async def delete_hostel(
 # ADMIN ROUTES
 # ============================================================
 
-@admin_hostel_router.get("/", response_model=PaginatedHostels)
+@admin_hostel_router.get("/", response_model=PaginatedHostelsAdmin)
 async def admin_get_all_hostels(
     limit: int = 50,
     offset: int = 0,
@@ -172,7 +170,6 @@ async def admin_get_all_hostels(
     hostel_service: HostelService = Depends(get_hostel_service),
     _: User = Depends(get_current_admin)
 ):
-    # ✅ Admin gets blocks + count for full management view
     result = await hostel_service.get_all_hostels(
         limit=limit,
         offset=offset,
@@ -180,11 +177,11 @@ async def admin_get_all_hostels(
         include_blocks=True,
         include_count=True,
     )
-    result.hostels = [HostelRead.model_validate(h) for h in result.hostels]
+    result.hostels = [HostelAdminRead.model_validate(h) for h in result.hostels]
     return result
 
 
-@admin_hostel_router.patch("/{hostel_id}", response_model=HostelRead)
+@admin_hostel_router.patch("/{hostel_id}", response_model=HostelAdminRead)
 async def admin_update_hostel(
     hostel_id: UUID,
     payload: HostelUpdate = Body(...),
@@ -198,8 +195,7 @@ async def admin_update_hostel(
 
     await hostel_service.session.commit()
     await hostel_service.session.refresh(updated_hostel)
-
-    return HostelRead.model_validate(updated_hostel)
+    return HostelAdminRead.model_validate(updated_hostel)
 
 
 @admin_hostel_router.patch("/{hostel_id}/featured")
@@ -224,14 +220,13 @@ async def admin_delete_hostel(
     hostel_service: HostelService = Depends(get_hostel_service),
     _: User = Depends(get_current_admin)
 ):
-    hostel = await hostel_service.get_hostel(hostel_id)
+    hostel = await hostel_service.get_hostel(hostel_id, include_blocks=False)
     if not hostel:
         raise HTTPException(status_code=404, detail="Hostel not found")
 
     hostel.is_deleted = True
     await hostel_service.session.commit()
     await hostel_service.session.refresh(hostel)
-
     return {"success": True, "message": "Hostel marked as deleted by admin"}
 
 
