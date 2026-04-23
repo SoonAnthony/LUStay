@@ -104,7 +104,7 @@ class User(SQLModel, table=True):
     )
     hostels: List["Hostel"] = Relationship(
         back_populates="owner",
-        sa_relationship_kwargs={"lazy": "selectin"}
+        sa_relationship_kwargs={"lazy": "noload"}  # ✅ keeps the relationship but never auto-loads
     )
     def __repr__(self):
         return f"<User(email={self.email}, role={self.role})>"
