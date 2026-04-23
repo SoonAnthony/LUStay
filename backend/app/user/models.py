@@ -86,46 +86,33 @@ class User(SQLModel, table=True):
 
     # Temporary fields for password verification
     pending_password: Optional[str] = Field(default=None, max_length=128)
-    
 
-    
     # Relationships
-    
-    # Requests made by this user
     landlord_requests: List["LandlordRequest"] = Relationship(
         back_populates="user",
-        sa_relationship_kwargs={"foreign_keys": "[LandlordRequest.user_id]"}  
+        sa_relationship_kwargs={"foreign_keys": "[LandlordRequest.user_id]"}
     )
-
-    # Requests reviewed by this user (if admin)
     reviewed_requests: List["LandlordRequest"] = Relationship(
         back_populates="admin",
         sa_relationship_kwargs={"foreign_keys": "[LandlordRequest.admin_id]"}
     )
     hostels: List["Hostel"] = Relationship(
         back_populates="owner",
-        sa_relationship_kwargs={"lazy": "noload"}  # ✅ keeps the relationship but never auto-loads
+        sa_relationship_kwargs={"lazy": "noload"}
     )
+
     def __repr__(self):
         return f"<User(email={self.email}, role={self.role})>"
 
 
 # Landlord Request Status Enum
-# ----------------------------
 class RequestStatus(str, enum.Enum):
     PENDING = "PENDING"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
 
 
-class DocumentType(str, enum.Enum):
-    TITLE_DEED = "TITLE_DEED"
-    LEASE_AGREEMENT = "LEASE_AGREEMENT"
-    AUTHORIZATION_LETTER = "AUTHORIZATION_LETTER"
-
-
 # LandlordRequest Model
-
 class LandlordRequest(SQLModel, table=True):
     __tablename__ = "landlord_requests"
     __table_args__ = (
@@ -144,7 +131,7 @@ class LandlordRequest(SQLModel, table=True):
 
     # User who made the request
     user_id: uuid.UUID = Field(
-        foreign_key="users.id",  
+        foreign_key="users.id",
         nullable=False,
         index=True
     )
@@ -153,19 +140,17 @@ class LandlordRequest(SQLModel, table=True):
         sa_relationship_kwargs={"foreign_keys": "[LandlordRequest.user_id]"}
     )
 
-    document_type: DocumentType = Field(
-        sa_column=Column(
-            PGEnum(DocumentType, name="documenttype"),
-            nullable=False
-        )
-    )
+    # Document 1: Title Deed
+    title_deed_url: str = Field(nullable=False)
+    title_deed_public_id: str = Field(nullable=False)
 
-    document_url: str = Field(nullable=False)
+    # Document 2: Lease Agreement
+    lease_agreement_url: str = Field(nullable=False)
+    lease_agreement_public_id: str = Field(nullable=False)
 
-    document_public_id: str = Field(
-        nullable=False,
-        description="Cloudinary public ID used for file deletion"
-    )
+    # Document 3: Authorization Letter
+    authorization_letter_url: str = Field(nullable=False)
+    authorization_letter_public_id: str = Field(nullable=False)
 
     # Admin who approved/rejected
     admin_id: Optional[uuid.UUID] = Field(
@@ -201,7 +186,6 @@ class LandlordRequest(SQLModel, table=True):
     )
 
     rejection_reason: Optional[str] = Field(default=None, max_length=255)
-
 
     def __repr__(self):
         return f"<LandlordRequest(user_id={self.user_id}, status={self.status})>"
