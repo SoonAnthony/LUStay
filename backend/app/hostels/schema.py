@@ -35,10 +35,10 @@ class AmenityRead(AmenityBase):
 # ================================
 class HostelBase(BaseModel):
     name: str
-    description: Optional[str]
+    description: Optional[str] = None      # FIX: was missing default None
     location: str
-    latitude: Optional[float]
-    longitude: Optional[float]
+    latitude: Optional[float] = None       # FIX: was missing default None
+    longitude: Optional[float] = None      # FIX: was missing default None
     status: HostelStatus = HostelStatus.PENDING
     is_featured: bool = False
 
@@ -59,10 +59,10 @@ class HostelUpdate(BaseModel):
 class HostelCreateResponse(BaseModel):
     id: UUID
     name: str
-    description: str
+    description: Optional[str] = None      # FIX: was non-optional — caused 500 if omitted
     location: str
-    latitude: float
-    longitude: float
+    latitude: Optional[float] = None       # FIX: was non-optional — caused 500 if omitted
+    longitude: Optional[float] = None      # FIX: was non-optional — caused 500 if omitted
     status: str
     is_featured: bool
     owner_id: UUID
@@ -140,7 +140,7 @@ class HostelImageRead(HostelImageBase):
 # ================================
 class HostelBlockBase(BaseModel):
     data: str
-    previous_hash: Optional[str]
+    previous_hash: Optional[str] = None    # FIX: was missing default None
     hash: str
 
 class HostelBlockCreate(HostelBlockBase):
