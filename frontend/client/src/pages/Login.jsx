@@ -4,6 +4,14 @@ import { useDispatch, useSelector } from "react-redux";
 import { loginUser } from "../features/auth/authSlice";
 import Footer from "../components/Footer";
 
+// ── Role → destination ────────────────────────────────────────
+const getRoleDestination = (role) => {
+  const r = role?.toUpperCase();
+  if (r === "LANDLORD") return "/landlord/dashboard";
+  if (r === "ADMIN")    return "/admin/dashboard";
+  return "/profile"; // STUDENT default
+};
+
 const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -11,14 +19,14 @@ const Login = () => {
 
   const { error } = useSelector((state) => state.auth);
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email,        setEmail]        = useState("");
+  const [password,     setPassword]     = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting,   setSubmitting]   = useState(false);
   const [flashMessage, setFlashMessage] = useState(null);
-  const [flashType, setFlashType] = useState("success");
+  const [flashType,    setFlashType]    = useState("success");
 
-  const from = location.state?.from?.pathname || "/";
+  const from = location.state?.from?.pathname || null;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,15 +39,20 @@ const Login = () => {
         setFlashType("success");
         setFlashMessage("Login Successful 🎉");
 
+        const user = resultAction.payload;
+
         setTimeout(() => {
-          if (from && from !== "/") {
+          // If user was trying to reach a specific page, honour it
+          // but never send a landlord to /profile or a student to /landlord/dashboard
+          if (from && from !== "/" && from !== "/login") {
             navigate(from, { replace: true });
           } else {
+            // Check bookings intent for students
             const raw = sessionStorage.getItem("bookings_intent");
-            if (raw) {
+            if (raw && user?.role?.toUpperCase() === "STUDENT") {
               navigate("/bookings", { replace: true });
             } else {
-              navigate("/", { replace: true });
+              navigate(getRoleDestination(user?.role), { replace: true });
             }
           }
         }, 1500);
@@ -89,17 +102,12 @@ const Login = () => {
 
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 pt-16">
         <div className="w-full max-w-sm">
-
           <div className="bg-white border border-gray-100 rounded-2xl p-8">
 
             {/* HEADER */}
             <div className="mb-7">
-              <h1 className="text-2xl font-semibold text-gray-900">
-                Welcome back
-              </h1>
-              <p className="text-sm text-gray-400 mt-1">
-                Login to book your hostel room
-              </p>
+              <h1 className="text-2xl font-semibold text-gray-900">Welcome back</h1>
+              <p className="text-sm text-gray-400 mt-1">Login to your LUStay account</p>
             </div>
 
             {/* ERROR */}
@@ -111,12 +119,8 @@ const Login = () => {
 
             {/* FORM */}
             <form onSubmit={handleSubmit} className="space-y-4">
-
-              {/* EMAIL */}
               <div>
-                <label className="text-xs font-medium text-gray-500 uppercase">
-                  Email
-                </label>
+                <label className="text-xs font-medium text-gray-500 uppercase">Email</label>
                 <input
                   type="email"
                   placeholder="you@example.com"
@@ -128,12 +132,9 @@ const Login = () => {
                 />
               </div>
 
-              {/* PASSWORD */}
               <div>
                 <div className="flex justify-between items-center">
-                  <label className="text-xs font-medium text-gray-500 uppercase">
-                    Password
-                  </label>
+                  <label className="text-xs font-medium text-gray-500 uppercase">Password</label>
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
@@ -153,15 +154,11 @@ const Login = () => {
                 />
               </div>
 
-              {/* SUBMIT */}
               <button
                 type="submit"
                 disabled={submitting}
                 className={`w-full py-2.5 rounded-xl text-sm font-medium text-white transition flex items-center justify-center gap-2
-                  ${submitting
-                    ? "bg-blue-400 cursor-not-allowed"
-                    : "bg-blue-500 hover:bg-blue-600"
-                  }`}
+                  ${submitting ? "bg-blue-400 cursor-not-allowed" : "bg-blue-500 hover:bg-blue-600"}`}
               >
                 {submitting ? (
                   <>
@@ -171,30 +168,21 @@ const Login = () => {
                     </svg>
                     Logging in...
                   </>
-                ) : (
-                  "Login"
-                )}
+                ) : "Login"}
               </button>
-
             </form>
 
-            {/* REGISTER */}
             <p className="text-center text-sm text-gray-400 mt-5">
               Don't have an account?{" "}
-              <button
-                onClick={() => navigate("/register")}
-                className="text-blue-500 font-medium"
-              >
+              <button onClick={() => navigate("/register")} className="text-blue-500 font-medium">
                 Register
               </button>
             </p>
-
           </div>
 
           <p className="text-center text-xs text-gray-300 mt-5">
             By logging in you agree to our terms and privacy policy.
           </p>
-
         </div>
       </div>
 

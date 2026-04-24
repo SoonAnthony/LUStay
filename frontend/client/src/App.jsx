@@ -20,6 +20,7 @@ import ChangePhone from "./pages/ChangePhone";
 import ChangePassword from "./pages/ChangePassword";
 import ConfirmPage from "./pages/ConfirmPage";
 import BecomeLandlord from "./pages/BecomeLandlord";
+import LandlordDashboard from "./pages/LandlordDashboard";
 
 const SessionSkeleton = () => (
   <div style={{ minHeight: "100vh", background: "#f3f4f6" }}>
@@ -35,8 +36,6 @@ const SessionSkeleton = () => (
         border-radius: 6px;
       }
     `}</style>
-
-    {/* Navbar */}
     <div style={{ height: 64, background: "#fff", borderBottom: "1px solid #e5e7eb", display: "flex", alignItems: "center", padding: "0 24px", gap: 16 }}>
       <div className="sk" style={{ width: 120, height: 32, borderRadius: 8 }} />
       <div style={{ flex: 1 }} />
@@ -45,8 +44,6 @@ const SessionSkeleton = () => (
       <div className="sk" style={{ width: 70, height: 18 }} />
       <div className="sk" style={{ width: 36, height: 36, borderRadius: "50%" }} />
     </div>
-
-    {/* Body */}
     <div style={{ maxWidth: 1100, margin: "40px auto", padding: "0 24px", display: "flex", flexDirection: "column", gap: 20 }}>
       <div className="sk" style={{ width: "50%", height: 36 }} />
       <div className="sk" style={{ width: "30%", height: 20 }} />
@@ -67,40 +64,66 @@ const SessionSkeleton = () => (
   </div>
 );
 
+const StudentRoute = ({ user, children }) => {
+  if (!user) return <Navigate to="/login" replace />;
+  const role = user.role?.toUpperCase();
+  if (role === "LANDLORD") return <Navigate to="/landlord/dashboard" replace />;
+  if (role === "ADMIN")    return <Navigate to="/admin/dashboard" replace />;
+  return children;
+};
+
+const LandlordRoute = ({ user, children }) => {
+  if (!user) return <Navigate to="/login" replace />;
+  const role = user.role?.toUpperCase();
+  if (role === "STUDENT") return <Navigate to="/profile" replace />;
+  if (role === "ADMIN")   return <Navigate to="/admin/dashboard" replace />;
+  return children;
+};
+
+const AuthRoute = ({ user, children }) => {
+  if (!user) return <Navigate to="/login" replace />;
+  return children;
+};
+
 const App = () => {
   const dispatch = useDispatch();
-  const { isAuthenticated, authReady } = useSelector((state) => state.auth);
+  const { user, isAuthenticated, authReady } = useSelector((state) => state.auth);
 
   useEffect(() => {
     dispatch(restoreSession());
   }, [dispatch]);
 
-  if (!authReady) {
-    return <SessionSkeleton />;
-  }
+  if (!authReady) return <SessionSkeleton />;
+
+  const roleHome =
+    user?.role?.toUpperCase() === "LANDLORD" ? "/landlord/dashboard" :
+    user?.role?.toUpperCase() === "ADMIN"    ? "/admin/dashboard" :
+    "/profile";
 
   return (
     <Router>
       <>
         <Navbar />
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/hostels" element={<Hostels />} />
-          <Route path="/hostels/:id" element={<HostelDetails />} />
+          <Route path="/"               element={<Home />} />
+          <Route path="/hostels"        element={<Hostels />} />
+          <Route path="/hostels/:id"    element={<HostelDetails />} />
           <Route path="/room-types/:id" element={<RoomTypeDetails />} />
-          <Route path="/rooms/:id" element={<RoomDetails />} />
-          <Route path="/login" element={isAuthenticated ? <Navigate to="/" /> : <Login />} />
-          <Route path="/register" element={isAuthenticated ? <Navigate to="/" /> : <Register />} />
-          <Route path="/payments/:id" element={<PaymentStatus />} />
-          <Route path="/profile" element={isAuthenticated ? <Profile /> : <Navigate to="/login" />} />
-          <Route path="/become-landlord" element={<BecomeLandlord />} />
-          <Route path="/change-email" element={<ChangeEmail />} />
-          <Route path="/change-phone" element={<ChangePhone />} />
-          <Route path="/change-password" element={<ChangePassword />} />
-          <Route path="/auth/confirm" element={<ConfirmPage />} />
-          <Route path="/maps" element={<Maps />} />
-          <Route path="/bookings" element={<Bookings />} />
-          <Route path="/about" element={<About />} />
+          <Route path="/rooms/:id"      element={<RoomDetails />} />
+          <Route path="/maps"           element={<Maps />} />
+          <Route path="/bookings"       element={<Bookings />} />
+          <Route path="/about"          element={<About />} />
+          <Route path="/auth/confirm"   element={<ConfirmPage />} />
+          <Route path="/login"          element={isAuthenticated ? <Navigate to={roleHome} replace /> : <Login />} />
+          <Route path="/register"       element={isAuthenticated ? <Navigate to={roleHome} replace /> : <Register />} />
+          <Route path="/payments/:id"   element={<AuthRoute user={user}><PaymentStatus /></AuthRoute>} />
+          <Route path="/profile"        element={<StudentRoute user={user}><Profile /></StudentRoute>} />
+          <Route path="/become-landlord" element={<StudentRoute user={user}><BecomeLandlord /></StudentRoute>} />
+          <Route path="/change-email"   element={<AuthRoute user={user}><ChangeEmail /></AuthRoute>} />
+          <Route path="/change-phone"   element={<AuthRoute user={user}><ChangePhone /></AuthRoute>} />
+          <Route path="/change-password" element={<AuthRoute user={user}><ChangePassword /></AuthRoute>} />
+          <Route path="/landlord/dashboard" element={<LandlordRoute user={user}><LandlordDashboard /></LandlordRoute>} />
+          <Route path="*"               element={<Navigate to="/" replace />} />
         </Routes>
       </>
     </Router>
