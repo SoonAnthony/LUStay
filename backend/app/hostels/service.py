@@ -69,7 +69,6 @@ class HostelService:
         return hostel
 
     async def update_hostel(self, hostel_id: UUID, **updates) -> Optional[Hostel]:
-        # Use fast query — blocks not needed for update
         result = await self.session.execute(
             self._base_query_no_blocks().where(Hostel.id == hostel_id)
         )
@@ -179,6 +178,7 @@ class HostelService:
         limit: int = 50,
         offset: int = 0,
         status: Optional[HostelStatus] = None,
+        owner_id: Optional[UUID] = None,        # ✅ NEW — filter by owner
         include_deleted: bool = False,
         include_blocks: bool = False,
         include_count: bool = True,
@@ -192,6 +192,8 @@ class HostelService:
 
         if status:
             base_query = base_query.where(Hostel.status == status)
+        if owner_id:
+            base_query = base_query.where(Hostel.owner_id == owner_id)  # ✅ NEW
         if not include_deleted:
             base_query = base_query.where(Hostel.is_deleted == False)
 
