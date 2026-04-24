@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Footer from "../components/Footer";
@@ -44,9 +44,10 @@ const HostelCardSkeleton = () => (
 // ── STATUS BADGE ──────────────────────────────────────────────
 const StatusBadge = ({ status }) => {
   const styles = {
-    APPROVED: "bg-lime-50 text-lime-600",
-    PENDING:  "bg-amber-50 text-amber-600",
-    REJECTED: "bg-red-50 text-red-400",
+    APPROVED:  "bg-lime-50 text-lime-600",
+    PENDING:   "bg-amber-50 text-amber-600",
+    REJECTED:  "bg-red-50 text-red-400",
+    SUSPENDED: "bg-gray-100 text-gray-500",
   };
   return (
     <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${styles[status] || "bg-gray-50 text-gray-500"}`}>
@@ -57,9 +58,9 @@ const StatusBadge = ({ status }) => {
 
 // ── CREATE HOSTEL MODAL ───────────────────────────────────────
 const CreateHostelModal = ({ onClose, onSuccess }) => {
-  const [form, setForm]       = useState({ name: "", location: "", description: "", price_per_semester: "" });
-  const [submitting, setSub]  = useState(false);
-  const [error, setError]     = useState(null);
+  const [form, setForm]      = useState({ name: "", location: "", description: "", price_per_semester: "" });
+  const [submitting, setSub] = useState(false);
+  const [error, setError]    = useState(null);
 
   const handleSubmit = async () => {
     if (!form.name || !form.location) return setError("Name and location are required");
@@ -67,10 +68,10 @@ const CreateHostelModal = ({ onClose, onSuccess }) => {
     setError(null);
     try {
       const { data } = await axios.post(`${BASE}/hostels/`, {
-        name:                form.name,
-        location:            form.location,
-        description:         form.description,
-        price_per_semester:  Number(form.price_per_semester),
+        name:               form.name,
+        location:           form.location,
+        description:        form.description || null,
+        price_per_semester: form.price_per_semester ? Number(form.price_per_semester) : null,
       }, { withCredentials: true });
       onSuccess(data);
     } catch (e) {
@@ -89,9 +90,9 @@ const CreateHostelModal = ({ onClose, onSuccess }) => {
 
         <div className="space-y-3">
           {[
-            { label: "Hostel name",         key: "name",               placeholder: "e.g. Sunrise Hostel" },
-            { label: "Location",            key: "location",           placeholder: "e.g. Near LU Gate 2" },
-            { label: "Description",         key: "description",        placeholder: "Brief description (optional)" },
+            { label: "Hostel name",              key: "name",               placeholder: "e.g. Sunrise Hostel" },
+            { label: "Location",                 key: "location",           placeholder: "e.g. Near LU Gate 2" },
+            { label: "Description",              key: "description",        placeholder: "Brief description (optional)" },
             { label: "Price per semester (KES)", key: "price_per_semester", placeholder: "e.g. 25000", type: "number" },
           ].map(({ label, key, placeholder, type = "text" }) => (
             <div key={key}>
@@ -133,15 +134,15 @@ const CreateHostelModal = ({ onClose, onSuccess }) => {
 
 // ── MAIN DASHBOARD ────────────────────────────────────────────
 const LandlordDashboard = () => {
-  const navigate  = useNavigate();
-  const user      = useSelector((s) => s.auth.user);
+  const navigate = useNavigate();
+  const user     = useSelector((s) => s.auth.user);
 
-  const [hostels,      setHostels]      = useState([]);
-  const [loading,      setLoading]      = useState(true);
-  const [activeTab,    setActiveTab]    = useState("overview");
-  const [showCreate,   setShowCreate]   = useState(false);
-  const [deleteId,     setDeleteId]     = useState(null);
-  const [deleting,     setDeleting]     = useState(false);
+  const [hostels,    setHostels]    = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [activeTab,  setActiveTab]  = useState("overview");
+  const [showCreate, setShowCreate] = useState(false);
+  const [deleteId,   setDeleteId]   = useState(null);
+  const [deleting,   setDeleting]   = useState(false);
 
   // Derived stats
   const totalHostels  = hostels.length;
@@ -152,12 +153,12 @@ const LandlordDashboard = () => {
     fetchHostels();
   }, []);
 
+  // ── FIX: use /my-hostels instead of public / endpoint ──────
   const fetchHostels = async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get(`${BASE}/hostels/`, { withCredentials: true });
-      // Filter to only this landlord's hostels
-      setHostels(data.filter(h => h.owner_id === user?.id) ?? data);
+      const { data } = await axios.get(`${BASE}/hostels/my-hostels`, { withCredentials: true });
+      setHostels(data ?? []);
     } catch (e) {
       setHostels([]);
     } finally {
@@ -276,9 +277,9 @@ const LandlordDashboard = () => {
                 <p className="text-xs text-gray-400 uppercase tracking-wide mb-4">Quick actions</p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {[
-                    { icon: "🏠", label: "Add hostel",   desc: "List a new property",         action: () => setShowCreate(true) },
-                    { icon: "🛏️", label: "Manage rooms",  desc: "Add or update room types",    action: () => setActiveTab("hostels") },
-                    { icon: "⚙️", label: "Account",       desc: "Update your profile",         action: () => setActiveTab("account") },
+                    { icon: "🏠", label: "Add hostel",  desc: "List a new property",      action: () => setShowCreate(true) },
+                    { icon: "🛏️", label: "Manage rooms", desc: "Add or update room types",  action: () => setActiveTab("hostels") },
+                    { icon: "⚙️", label: "Account",      desc: "Update your profile",       action: () => setActiveTab("account") },
                   ].map(({ icon, label, desc, action }) => (
                     <button
                       key={label}
@@ -448,9 +449,9 @@ const LandlordDashboard = () => {
 
               <p className="text-xs text-gray-400 uppercase tracking-wide mb-3 pt-2">Security</p>
               {[
-                { title: "Change password",    desc: "Confirm via email link",               action: () => navigate("/change-password") },
-                { title: "Change email",       desc: "Verify with your new email",           action: () => navigate("/change-email") },
-                { title: "Change phone",       desc: "Update your M-Pesa number",            action: () => navigate("/change-phone") },
+                { title: "Change password", desc: "Confirm via email link",    action: () => navigate("/change-password") },
+                { title: "Change email",    desc: "Verify with your new email", action: () => navigate("/change-email") },
+                { title: "Change phone",    desc: "Update your M-Pesa number",  action: () => navigate("/change-phone") },
               ].map(({ title, desc, action }) => (
                 <div key={title} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
                   <div>
