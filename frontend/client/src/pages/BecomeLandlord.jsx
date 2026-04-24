@@ -227,7 +227,7 @@ const LandlordDashboard = () => {
               </div>
               <button
                 onClick={() => setShowCreate(true)}
-                className="text-xs px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-colors flex-shrink-0"
+                className="text-xs px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-colors shrink-0"
               >
                 + New hostel
               </button>
