@@ -56,12 +56,34 @@ async def get_public_hostels(
     return [HostelRead.model_validate(h) for h in result.hostels]
 
 
+# ✅ MUST be before /{hostel_id} to avoid route conflict
+@hostel_router.get("/my-hostels", response_model=List[HostelRead])
+async def get_my_hostels(
+    hostel_service: HostelService = Depends(get_hostel_service),
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Returns ALL hostels owned by the current landlord,
+    regardless of status (PENDING, APPROVED, REJECTED, SUSPENDED).
+    """
+    if current_user.role not in [UserRole.LANDLORD, UserRole.ADMIN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only landlords or admins can access this endpoint"
+        )
+    result = await hostel_service.get_all_hostels(
+        owner_id=current_user.id,
+        include_blocks=False,
+        include_count=False,
+    )
+    return [HostelRead.model_validate(h) for h in result.hostels]
+
+
 @hostel_router.get("/{hostel_id}", response_model=HostelRead)
 async def get_hostel(
     hostel_id: UUID,
     hostel_service: HostelService = Depends(get_hostel_service)
 ):
-    # include_blocks=False — faster, blocks not needed for public view
     hostel = await hostel_service.get_hostel(hostel_id, include_blocks=False)
     if not hostel:
         raise HTTPException(status_code=404, detail="Hostel not found")
@@ -111,7 +133,6 @@ async def update_hostel(
 ):
     updates = payload.model_dump(exclude_unset=True)
 
-    # Single fetch — reused for auth check, no second fetch inside service
     hostel = await hostel_service.get_hostel(hostel_id, include_blocks=False)
     if not hostel:
         raise HTTPException(status_code=404, detail="Hostel not found")
