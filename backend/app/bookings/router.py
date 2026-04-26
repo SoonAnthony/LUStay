@@ -3,9 +3,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload
+from datetime import datetime, timezone
 
 from app.db.engine import get_session
-from app.bookings.models import Booking, Reservation
+from app.bookings.models import Booking, Reservation, ReservationStatus
 from app.bookings.schema import BookingRead, BookingUpdate, ReservationCreate, ReservationRead
 from app.bookings.service import (
     create_reservation_logic,
@@ -33,7 +34,6 @@ async def create_reservation(
 ):
     """Create a reservation and initiate M-Pesa payment."""
     try:
-        # Step 1: create reservation
         reservation = await create_reservation_logic(
             session,
             current_user.id,
@@ -45,10 +45,8 @@ async def create_reservation(
         await session.commit()
         await session.refresh(reservation)
 
-        # Step 2: initiate payment (pure logic)
         payment, reservation = await initiate_payment_logic(reservation, request.phone_number)
 
-        # Commit here in the route
         session.add_all([payment, reservation])
         await session.commit()
         await session.refresh(reservation)
@@ -57,7 +55,7 @@ async def create_reservation(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-# Booking endpoints
+
 @bookings_router.get("/reservations/{reservation_id}", response_model=ReservationRead)
 async def get_reservation(
     reservation_id: uuid.UUID,
@@ -69,22 +67,62 @@ async def get_reservation(
         raise HTTPException(status_code=404, detail="Reservation not found")
     if reservation.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized")
+
+    # ✅ Also expire it server-side if the TTL has passed, so the
+    # frontend poll always gets the correct status back.
+    if (
+        reservation.status == ReservationStatus.ACTIVE
+        and reservation.expires_at <= datetime.now(timezone.utc)
+    ):
+        reservation.status = ReservationStatus.EXPIRED
+        session.add(reservation)
+        await session.commit()
+        await session.refresh(reservation)
+
     return ReservationRead.model_validate(reservation)
+
+
+# ✅ NEW — called by the frontend the moment the countdown hits zero.
+# Immediately marks the reservation EXPIRED so the slot is released
+# and the UI can transition without waiting for the next poll.
+@bookings_router.patch(
+    "/reservations/{reservation_id}/expire",
+    response_model=ReservationRead,
+)
+async def expire_reservation(
+    reservation_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Expire a reservation immediately (called when the countdown reaches zero)."""
+    reservation = await session.get(Reservation, reservation_id)
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Reservation not found")
+    if reservation.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # Idempotent — already expired or converted is fine, just return it
+    if reservation.status != ReservationStatus.ACTIVE:
+        return ReservationRead.model_validate(reservation)
+
+    reservation.status = ReservationStatus.EXPIRED
+    session.add(reservation)
+    await session.commit()
+    await session.refresh(reservation)
+
+    return ReservationRead.model_validate(reservation)
+
 
 @bookings_router.get("/my", response_model=list[BookingRead])
 async def list_my_bookings(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_active_user),
 ):
-    """
-    Students: list all their own bookings.
-    """
     if current_user.role != "STUDENT":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only students can access this endpoint",
         )
-
     bookings = await list_student_bookings_logic(session, current_user.id)
     return [BookingRead.model_validate(b) for b in bookings]
 
@@ -95,7 +133,6 @@ async def get_booking(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_active_user),
 ):
-    #Get a single booking. Students can only see their own bookings.
     try:
         booking = await get_booking_logic(session, booking_id)
     except ValueError as e:
@@ -113,11 +150,6 @@ async def list_bookings(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_landlord_or_admin),
 ):
-    """
-    List bookings:
-      - Landlord: only bookings for hostels they own (optionally filter by hostel_id).
-      - Admin: all bookings, optionally filter by hostel_id.
-    """
     query = (
         select(Booking)
         .options(
@@ -131,11 +163,9 @@ async def list_bookings(
         query = query.where(Hostel.owner_id == current_user.id)
         if hostel_id:
             query = query.where(Hostel.id == hostel_id)
-
     elif current_user.role == "ADMIN":
         if hostel_id:
             query = query.join(Room, Booking.room_id == Room.id).where(Room.hostel_id == hostel_id)
-
     else:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to list bookings")
 
@@ -151,7 +181,6 @@ async def update_booking(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_landlord_or_admin),
 ):
-    """Admin-only: update booking metadata (not payment status)."""
     try:
         booking = await get_booking_logic(session, booking_id)
         booking = await update_booking_logic(booking, update_data)
@@ -170,7 +199,6 @@ async def record_balance_payment(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_active_user),
 ):
-    """Record a balance payment. Moves booking CONFIRMED → ACTIVE when fully paid."""
     try:
         booking = await get_booking_logic(session, booking_id)
         booking = await record_balance_payment_logic(booking, amount)
@@ -188,7 +216,6 @@ async def cancel_booking(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_landlord_or_admin),
 ):
-    """Cancel a booking. Marks status CANCELLED (refund logic can be added)."""
     try:
         booking = await get_booking_logic(session, booking_id)
         booking = await cancel_booking_logic(booking)
