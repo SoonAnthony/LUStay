@@ -46,15 +46,33 @@ async def _count_active_slots(session: AsyncSession, room_id: uuid.UUID) -> int:
     bookings = await session.exec(
         select(Booking).where(
             Booking.room_id == room_id,
-            Booking.status == BookingStatus.CONFIRMED,
+            Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.ACTIVE]),
         )
     )
     return len(reservations.all()) + len(bookings.all())
 
 # Reservation
-async def create_reservation_logic(session: AsyncSession, user_id: uuid.UUID, room_id: uuid.UUID, semester: str, is_shared: bool) -> Reservation:
+async def create_reservation_logic(
+    session: AsyncSession,
+    user_id: uuid.UUID,
+    room_id: uuid.UUID,
+    semester: str,
+    is_shared: bool,
+) -> Reservation:
     room, room_type = await _get_room_and_type(session, room_id)
+
+    # Block fully occupied rooms
+    if room.status == RoomStatus.FULLY_OCCUPIED:
+        raise ValueError("Room is fully occupied and cannot be booked.")
+
+    # ✅ Block maintenance rooms
+    if room.status == RoomStatus.MAINTENANCE:
+        raise ValueError("Room is currently under maintenance and cannot be booked.")
+
+    # Expire any stale reservations so their slots are freed before counting
     await _expire_stale_reservations(session, room_id)
+
+    # Prevent duplicate active reservation from the same user for this room
     existing = await session.exec(
         select(Reservation).where(
             Reservation.user_id == user_id,
@@ -64,10 +82,18 @@ async def create_reservation_logic(session: AsyncSession, user_id: uuid.UUID, ro
     )
     if existing.first():
         raise ValueError("You already have an active reservation for this room.")
+
+    # Count all active slots (reservations + confirmed/active bookings)
     active_slots = await _count_active_slots(session, room_id)
-    capacity = room_type.capacity if is_shared else 1
-    if active_slots >= capacity:
+
+    if active_slots >= room_type.capacity:
         raise ValueError("Room is fully reserved or occupied.")
+
+    # If someone tries to book single but there are already shared occupants
+    # taking the only slot available, also reject
+    if not is_shared and active_slots >= 1:
+        raise ValueError("Room already has occupants — single booking not available.")
+
     expires_at = datetime.now(timezone.utc) + timedelta(seconds=RESERVATION_TTL_SECONDS)
     return Reservation(
         user_id=user_id,
@@ -82,7 +108,11 @@ async def attach_mpesa_checkout_id_logic(reservation: Reservation, checkout_requ
     reservation.mpesa_checkout_request_id = checkout_request_id
     return reservation
 
-async def convert_reservation_to_booking_logic(session: AsyncSession, reservation: Reservation, amount_paid: int) -> tuple[Booking, Reservation]:
+async def convert_reservation_to_booking_logic(
+    session: AsyncSession,
+    reservation: Reservation,
+    amount_paid: int,
+) -> tuple[Booking, Reservation]:
     now = datetime.now(timezone.utc)
     if reservation.status != ReservationStatus.ACTIVE or reservation.expires_at <= now:
         reservation.status = ReservationStatus.EXPIRED
@@ -105,15 +135,21 @@ async def convert_reservation_to_booking_logic(session: AsyncSession, reservatio
     )
     reservation.status = ReservationStatus.CONVERTED
 
-    # Count current confirmed bookings (+1 for the one being created now)
-    active_slots = await _count_active_slots(session, reservation.room_id)
-    new_occupants = active_slots + 1
+    existing_bookings = await session.exec(
+        select(Booking).where(
+            Booking.room_id == reservation.room_id,
+            Booking.status.in_([BookingStatus.CONFIRMED, BookingStatus.ACTIVE]),
+        )
+    )
+    # +1 for the booking we're about to add
+    new_occupants = len(existing_bookings.all()) + 1
 
-    # ✅ Update occupants count
     room.occupants = new_occupants
 
-    # ✅ Set correct status — handles both shared and single rooms
-    if new_occupants >= room_type.capacity:
+    # ✅ Single booking = room is fully occupied immediately, regardless of capacity
+    if not reservation.is_shared:
+        room.status = RoomStatus.FULLY_OCCUPIED
+    elif new_occupants >= room_type.capacity:
         room.status = RoomStatus.FULLY_OCCUPIED
     elif new_occupants > 0:
         room.status = RoomStatus.PARTIALLY_OCCUPIED

@@ -33,16 +33,31 @@ class RoomService:
             raise PermissionError("You do not own this hostel")
 
         existing = (await self.session.exec(
-            select(RoomType).where(RoomType.hostel_id == data.hostel_id, RoomType.name == data.name)
+            select(RoomType).where(
+                RoomType.hostel_id == data.hostel_id,
+                RoomType.name == data.name
+            )
         )).first()
+
         if existing:
             raise ValueError(f"{data.name} room type already exists for this hostel")
 
         room_type = RoomType(**data.dict())
         self.session.add(room_type)
+
+        await self.session.flush()
+
+        room_type_id = room_type.id
+
         await self.session.commit()
-        await self.session.refresh(room_type)
-        return room_type
+
+        result = await self.session.execute(
+            select(RoomType)
+            .options(selectinload(RoomType.images))
+            .where(RoomType.id == room_type_id)
+        )
+
+        return result.scalar_one()
 
     async def add_roomtype_images(self, room_type_id: UUID, files: List, current_user: User) -> List[RoomTypeImage]:
         room_type = await self.session.get(RoomType, room_type_id)
@@ -105,7 +120,6 @@ class RoomService:
         if room_type_id:
             query = query.where(Room.room_type_id == room_type_id)
 
-        # Single filtered query — no full table scan
         result = await self.session.exec(
             query.execution_options(populate_existing=True)
         )
@@ -138,6 +152,19 @@ class RoomService:
         for key, value in update_data.items():
             setattr(room, key, value)
 
+        # ✅ If only occupants changed (no explicit status), auto-derive status
+        # but never auto-override a MAINTENANCE status set intentionally.
+        if "occupants" in update_data and "status" not in update_data:
+            if room.status != RoomStatus.MAINTENANCE:
+                room_type = await self.session.get(RoomType, room.room_type_id)
+                if room_type:
+                    if room.occupants <= 0:
+                        room.status = RoomStatus.AVAILABLE
+                    elif room.occupants >= room_type.capacity:
+                        room.status = RoomStatus.FULLY_OCCUPIED
+                    else:
+                        room.status = RoomStatus.PARTIALLY_OCCUPIED
+
         self.session.add(room)
         await self.session.commit()
         await self.session.refresh(room)
@@ -153,4 +180,23 @@ class RoomService:
             raise PermissionError("You do not have permission to delete this room")
 
         await self.session.delete(room)
+        await self.session.commit()
+
+    async def delete_roomtype_image(self, image_id: UUID, current_user: User) -> None:
+        image = await self.session.get(RoomTypeImage, image_id)
+        if not image:
+            raise HTTPException(status_code=404, detail="Image not found")
+
+        room_type = await self.session.get(RoomType, image.room_type_id)
+        if not room_type:
+            raise HTTPException(status_code=404, detail="Room type not found")
+
+        hostel = await self.session.get(Hostel, room_type.hostel_id)
+        if not hostel:
+            raise HTTPException(status_code=404, detail="Hostel not found")
+
+        if current_user.role != "ADMIN" and hostel.owner_id != current_user.id:
+            raise HTTPException(status_code=403, detail="You do not own this hostel")
+
+        await self.session.delete(image)
         await self.session.commit()

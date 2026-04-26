@@ -43,10 +43,15 @@ const RoomTypeDetails = () => {
     return () => controller.abort();
   }, [id]);
 
-  const totalRooms = rooms.length;
-  const fullyOccupied = rooms.filter((r) => r.status === "FULLY_OCCUPIED").length;
-  const partialRooms = rooms.filter((r) => r.status === "PARTIALLY_OCCUPIED").length;
+  const totalRooms     = rooms.length;
+  const fullyOccupied  = rooms.filter((r) => r.status === "FULLY_OCCUPIED").length;
+  const partialRooms   = rooms.filter((r) => r.status === "PARTIALLY_OCCUPIED").length;
   const availableRooms = rooms.filter((r) => r.status === "AVAILABLE").length;
+  const maintenanceRooms = rooms.filter((r) => r.status === "MAINTENANCE").length;
+
+  // ✅ A room is not selectable if it's fully occupied OR under maintenance
+  const isBlocked = (room) =>
+    room.status === "FULLY_OCCUPIED" || room.status === "MAINTENANCE";
 
   if (loading) {
     return (
@@ -139,7 +144,7 @@ const RoomTypeDetails = () => {
           {/* AVAILABILITY SUMMARY */}
           <div className="mb-6">
             <p className="text-sm font-medium text-gray-700 mb-3">Availability</p>
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-5 gap-3">
               <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
                 <p className="text-xl font-semibold text-lime-500">{availableRooms}</p>
                 <p className="text-xs text-gray-400 mt-1">Available</p>
@@ -151,6 +156,11 @@ const RoomTypeDetails = () => {
               <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
                 <p className="text-xl font-semibold text-red-400">{fullyOccupied}</p>
                 <p className="text-xs text-gray-400 mt-1">Occupied</p>
+              </div>
+              {/* ✅ Maintenance count */}
+              <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
+                <p className="text-xl font-semibold text-gray-400">{maintenanceRooms}</p>
+                <p className="text-xs text-gray-400 mt-1">Maintenance</p>
               </div>
               <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
                 <p className="text-xl font-semibold text-gray-700">{totalRooms}</p>
@@ -167,20 +177,23 @@ const RoomTypeDetails = () => {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {rooms.map((room) => {
+                const blocked     = isBlocked(room);
                 const isFullyOccupied = room.status === "FULLY_OCCUPIED";
-                const isPartial = room.status === "PARTIALLY_OCCUPIED";
-                const isSelected = selectedRoom?.id === room.id;
-                const slotsLeft = room.room_type
+                const isMaintenance   = room.status === "MAINTENANCE";
+                const isPartial   = room.status === "PARTIALLY_OCCUPIED";
+                const isSelected  = selectedRoom?.id === room.id;
+                const slotsLeft   = room.room_type
                   ? room.room_type.capacity - (room.occupants || 0)
                   : null;
 
                 return (
                   <button
                     key={room.id}
-                    onClick={() => { if (!isFullyOccupied) setSelectedRoom(room); }}
-                    disabled={isFullyOccupied}
+                    // ✅ block both FULLY_OCCUPIED and MAINTENANCE
+                    onClick={() => { if (!blocked) setSelectedRoom(room); }}
+                    disabled={blocked}
                     className={`p-4 rounded-xl border text-center transition-all duration-150
-                      ${isFullyOccupied
+                      ${blocked
                         ? "bg-gray-50 opacity-50 cursor-not-allowed border-gray-100"
                         : isSelected
                         ? "border-blue-400 border-2 bg-blue-50"
@@ -193,11 +206,19 @@ const RoomTypeDetails = () => {
                     <span className={`inline-block text-xs font-medium px-3 py-1 rounded-full
                       ${isFullyOccupied
                         ? "bg-red-50 text-red-400"
+                        : isMaintenance
+                        ? "bg-gray-100 text-gray-500"
                         : isPartial
                         ? "bg-amber-100 text-amber-600"
                         : "bg-lime-50 text-lime-600"
                       }`}>
-                      {isFullyOccupied ? "Occupied" : isPartial ? "Partial" : "Available"}
+                      {isFullyOccupied
+                        ? "Occupied"
+                        : isMaintenance
+                        ? "Maintenance"
+                        : isPartial
+                        ? "Partial"
+                        : "Available"}
                     </span>
                     {isPartial && slotsLeft !== null && (
                       <p className="text-xs text-gray-400 mt-2">
@@ -212,8 +233,8 @@ const RoomTypeDetails = () => {
         </div>
       </div>
 
-      {/* BOOKING PANEL */}
-      {selectedRoom && (
+      {/* BOOKING PANEL — only shown when a non-blocked room is selected */}
+      {selectedRoom && !isBlocked(selectedRoom) && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-4 z-50">
           <div className="max-w-4xl mx-auto flex justify-between items-center">
             <div>

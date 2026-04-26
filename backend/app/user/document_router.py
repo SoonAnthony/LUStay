@@ -38,19 +38,34 @@ async def upload_document(
     if len(contents) > MAX_SIZE:
         raise HTTPException(status_code=400, detail="File size must be under 10MB")
 
-    # Reset file pointer after reading
-    await file.seek(0)
+    is_pdf = file.content_type == "application/pdf"
 
     try:
-        # Use raw=True for PDFs so Cloudinary stores them as-is
-        is_pdf = file.content_type == "application/pdf"
+        if is_pdf:
+            # ── PDF upload ────────────────────────────────────────────
+            # resource_type="image"    → Cloudinary serves with proper PDF
+            #                            Content-Type (not forced download)
+            # access_mode="public"     → fixes 401 — no auth needed to view
+            # flags="attachment:false" → Content-Disposition: inline
+            result = cloudinary.uploader.upload(
+                contents,
+                folder=f"landlord_documents/{current_user.id}",
+                resource_type="image",
+                format="pdf",
+                flags="attachment:false",
+                access_mode="public",       # ✅ fixes 401
+                overwrite=False,
+            )
+        else:
+            # ── Image upload (JPEG / PNG / WebP) ─────────────────────
+            result = cloudinary.uploader.upload(
+                contents,
+                folder=f"landlord_documents/{current_user.id}",
+                resource_type="image",
+                access_mode="public",       # ✅ consistent — always public
+                overwrite=False,
+            )
 
-        result = cloudinary.uploader.upload(
-            contents,
-            folder=f"landlord_documents/{current_user.id}",
-            resource_type="raw" if is_pdf else "image",
-            overwrite=False,
-        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Document upload failed: {str(e)}")
 

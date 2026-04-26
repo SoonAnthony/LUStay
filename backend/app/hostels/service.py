@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy.future import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.hostels.models import Amenity, Hostel, HostelAmenity, HostelImage, HostelBlock
-from app.hostels.schema import AmenityCreate, HostelImageCreate, HostelRead, HostelStatus, PaginatedHostels
+from app.hostels.schema import AmenityCreate, HostelImageCreate, HostelStatus, PaginatedHostelsRaw
 import hashlib
 from sqlalchemy import func, desc
 from sqlalchemy.orm import selectinload
@@ -178,11 +178,11 @@ class HostelService:
         limit: int = 50,
         offset: int = 0,
         status: Optional[HostelStatus] = None,
-        owner_id: Optional[UUID] = None,        # ✅ NEW — filter by owner
+        owner_id: Optional[UUID] = None,
         include_deleted: bool = False,
         include_blocks: bool = False,
         include_count: bool = True,
-    ) -> PaginatedHostels:
+    ) -> PaginatedHostelsRaw:  # ✅ returns raw ORM objects — no Pydantic coercion
 
         base_query = (
             self._base_query_with_blocks()
@@ -193,7 +193,7 @@ class HostelService:
         if status:
             base_query = base_query.where(Hostel.status == status)
         if owner_id:
-            base_query = base_query.where(Hostel.owner_id == owner_id)  # ✅ NEW
+            base_query = base_query.where(Hostel.owner_id == owner_id)
         if not include_deleted:
             base_query = base_query.where(Hostel.is_deleted == False)
 
@@ -203,21 +203,27 @@ class HostelService:
             .offset(offset)
             .limit(limit)
         )
+
         result = await self.session.execute(data_query)
-        hostels = result.scalars().all()
+        hostels = list(result.scalars().all())  # ✅ keep as raw ORM list
 
         if include_count:
-            count_query = select(func.count()).select_from(
-                select(Hostel.id)
-                .where(*base_query.whereclause.clauses)
-                .subquery()
-            )
+            count_query = select(func.count(Hostel.id)).select_from(Hostel)
+            if status:
+                count_query = count_query.where(Hostel.status == status)
+            if owner_id:
+                count_query = count_query.where(Hostel.owner_id == owner_id)
+            if not include_deleted:
+                count_query = count_query.where(Hostel.is_deleted == False)
             total_result = await self.session.execute(count_query)
             total = total_result.scalar_one()
         else:
             total = len(hostels)
 
-        return PaginatedHostels(
+        # ✅ PaginatedHostelsRaw holds List[Any] — ORM objects are NOT coerced
+        # into HostelRead here, so blocks are still attached when the route
+        # later calls HostelAdminRead.model_validate(h)
+        return PaginatedHostelsRaw(
             total=total,
             limit=limit,
             offset=offset,

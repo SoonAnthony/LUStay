@@ -8,6 +8,13 @@ const SkeletonBlock = ({ h = "h-4", w = "w-full" }) => (
   <div className={`animate-pulse bg-gray-100 ${h} ${w} rounded-lg`} />
 );
 
+const statusConfig = {
+  AVAILABLE:          { label: "Available",          cls: "bg-lime-50 text-lime-600" },
+  PARTIALLY_OCCUPIED: { label: "Partially Occupied", cls: "bg-amber-50 text-amber-600" },
+  FULLY_OCCUPIED:     { label: "Fully Occupied",     cls: "bg-red-50 text-red-400" },
+  MAINTENANCE:        { label: "Under Maintenance",  cls: "bg-gray-100 text-gray-500" },
+};
+
 const RoomDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -23,7 +30,6 @@ const RoomDetails = () => {
   const [isShared, setIsShared] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
 
-  // ✅ Redirect to login immediately, preserving current URL to return to after login
   useEffect(() => {
     if (!isAuthenticated) {
       navigate("/login", { state: { from: location }, replace: true });
@@ -31,11 +37,11 @@ const RoomDetails = () => {
   }, [isAuthenticated, navigate, location]);
 
   useEffect(() => {
-    if (!isAuthenticated) return; // don't fetch if not authed
+    if (!isAuthenticated) return;
 
     const fetchRoom = async () => {
       try {
-        const res = await api.get(`/rooms/${id}`);
+        const res = await api.get(`/rooms/${id}/`);
         setRoom(res.data);
       } catch (err) {
         console.error("Error loading room:", err);
@@ -47,7 +53,7 @@ const RoomDetails = () => {
     fetchRoom();
   }, [id, isAuthenticated]);
 
-  if (!isAuthenticated) return null; // prevent flash before redirect
+  if (!isAuthenticated) return null;
 
   if (loading) {
     return (
@@ -72,7 +78,13 @@ const RoomDetails = () => {
     );
   }
 
-  const isAvailable = room.status !== "FULLY_OCCUPIED";
+  // ✅ Only AVAILABLE and PARTIALLY_OCCUPIED are bookable
+  const isMaintenance   = room.status === "MAINTENANCE";
+  const isFullyOccupied = room.status === "FULLY_OCCUPIED";
+  const isBookable      = !isMaintenance && !isFullyOccupied;
+
+  const { label: statusLabel, cls: statusCls } =
+    statusConfig[room.status] ?? { label: room.status, cls: "bg-gray-100 text-gray-500" };
 
   const handleBooking = async () => {
     if (!semester || !phoneNumber) {
@@ -122,13 +134,15 @@ const RoomDetails = () => {
           </div>
 
           {/* IMAGE */}
-          <div className="mb-4">
-            <img
-              src={room.room_type?.images?.[0]?.image_url}
-              alt="Room"
-              className="w-full h-64 object-cover rounded-2xl"
-            />
-          </div>
+          {room.room_type?.images?.[0]?.image_url && (
+            <div className="mb-4">
+              <img
+                src={room.room_type.images[0].image_url}
+                alt="Room"
+                className="w-full h-64 object-cover rounded-2xl"
+              />
+            </div>
+          )}
 
           {/* DESCRIPTION */}
           <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-4">
@@ -165,16 +179,18 @@ const RoomDetails = () => {
           {/* STATUS */}
           <div className="mb-6">
             <p className="text-sm font-medium text-gray-700 mb-2">Status</p>
-            <span
-              className={`inline-block px-4 py-1 text-xs rounded-full font-medium
-                ${isAvailable ? "bg-lime-50 text-lime-600" : "bg-red-50 text-red-400"}`}
-            >
-              {isAvailable ? "Available" : "Fully Occupied"}
+            <span className={`inline-block px-4 py-1 text-xs rounded-full font-medium ${statusCls}`}>
+              {statusLabel}
             </span>
+            {isMaintenance && (
+              <p className="text-xs text-gray-400 mt-2">
+                This room is currently unavailable for booking due to maintenance.
+              </p>
+            )}
           </div>
 
-          {/* BOOKING FORM */}
-          {isAvailable && (
+          {/* BOOKING FORM — only shown when truly bookable */}
+          {isBookable && (
             <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-6">
               <p className="text-xs text-gray-400 mb-3 uppercase tracking-wide">
                 Booking details
@@ -196,10 +212,11 @@ const RoomDetails = () => {
               <div className="mb-4 flex items-center gap-2">
                 <input
                   type="checkbox"
+                  id="isShared"
                   checked={isShared}
                   onChange={(e) => setIsShared(e.target.checked)}
                 />
-                <label className="text-sm text-gray-600">Shared room</label>
+                <label htmlFor="isShared" className="text-sm text-gray-600">Shared room</label>
               </div>
 
               <div>
@@ -221,18 +238,19 @@ const RoomDetails = () => {
           <div className="mt-6">
             <button
               onClick={handleBooking}
-              disabled={!isAvailable || bookingLoading}
+              disabled={!isBookable || bookingLoading}
               className={`w-full py-3 rounded-2xl text-sm font-medium transition-all duration-200
-                ${
-                  isAvailable
-                    ? "bg-blue-500 hover:bg-blue-600 text-white shadow-sm hover:shadow-md"
-                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                ${isBookable
+                  ? "bg-blue-500 hover:bg-blue-600 text-white shadow-sm hover:shadow-md"
+                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
                 }`}
             >
               {bookingLoading
                 ? "Processing payment..."
-                : isAvailable
+                : isBookable
                 ? "Reserve & Pay Deposit"
+                : isMaintenance
+                ? "Under Maintenance"
                 : "Unavailable"}
             </button>
           </div>

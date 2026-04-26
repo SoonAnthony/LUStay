@@ -1,14 +1,16 @@
-# backend/app/rooms/router.py
 from typing import List, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, UploadFile, File, Response
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select
+from sqlalchemy.orm import selectinload
 
 from app.rooms.schema import (
-    RoomTypeCreate, RoomTypeRead,  RoomTypeImageRead,
+    RoomTypeCreate, RoomTypeRead, RoomTypeImageRead,
     RoomCreate, RoomRead, RoomUpdate
 )
+from app.rooms.models import RoomType
 from app.rooms.service import RoomService
 from app.user.dependencies import (
     get_current_user,
@@ -24,16 +26,17 @@ room_admin_router = APIRouter(prefix="/admin/rooms", tags=["Rooms Admin"])
 room_public_router = APIRouter(prefix="/rooms", tags=["Rooms Public"])
 
 
+# ══════════════════════════════════════════════════════════════
 # LANDLORD ROUTES
+# ══════════════════════════════════════════════════════════════
+
 @room_landlord_router.post("/room-types/", response_model=RoomTypeRead)
 async def create_room_type_landlord(
     data: RoomTypeCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_landlord_or_admin),
     session: AsyncSession = Depends(get_session)
 ):
-    """
-    Landlord can create RoomTypes for their own hostels.
-    """
+    """Landlord can create RoomTypes for their own hostels."""
     service = RoomService(session)
     return await service.create_room_type(data, current_user)
 
@@ -45,11 +48,20 @@ async def upload_room_type_images_landlord(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session)
 ):
-    """
-    Upload images for a RoomType (Landlord only)
-    """
+    """Upload images for a RoomType (Landlord only)."""
     service = RoomService(session)
     return await service.add_roomtype_images(room_type_id, files, current_user)
+
+
+@room_landlord_router.delete("/room-types/images/{image_id}/", status_code=200)
+async def delete_room_type_image(
+    image_id: UUID,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session)
+):
+    service = RoomService(session)
+    await service.delete_roomtype_image(image_id, current_user)
+    return {"detail": "Image deleted successfully"}
 
 
 @room_landlord_router.post("/", response_model=RoomRead)
@@ -58,9 +70,7 @@ async def create_room_landlord(
     current_user: User = Depends(get_current_landlord_or_admin),
     session: AsyncSession = Depends(get_session)
 ):
-    """
-    Landlord can create rooms for their hostels.
-    """
+    """Landlord can create rooms for their hostels."""
     service = RoomService(session)
     return await service.create_room(data, current_user)
 
@@ -87,16 +97,17 @@ async def delete_room_landlord(
     return {"detail": "Room deleted successfully"}
 
 
+# ══════════════════════════════════════════════════════════════
 # ADMIN ROUTES
+# ══════════════════════════════════════════════════════════════
+
 @room_admin_router.post("/", response_model=RoomRead)
 async def create_room_admin(
     data: RoomCreate,
     current_user: User = Depends(get_current_admin),
     session: AsyncSession = Depends(get_session)
 ):
-    """
-    Admin can create rooms for any hostel.
-    """
+    """Admin can create rooms for any hostel."""
     service = RoomService(session)
     return await service.create_room(data, current_user)
 
@@ -123,17 +134,36 @@ async def delete_room_admin(
     return {"detail": "Room deleted successfully"}
 
 
+# ══════════════════════════════════════════════════════════════
 # PUBLIC ROUTES
+# ══════════════════════════════════════════════════════════════
+
 @room_public_router.get("/", response_model=List[RoomRead])
 async def list_rooms(
     response: Response,
     hostel_id: Optional[UUID] = Query(None),
-    room_type_id: Optional[UUID] = Query(None),  # ✅ frontend filters by this
+    room_type_id: Optional[UUID] = Query(None),
     session: AsyncSession = Depends(get_session)
 ):
-    response.headers["Cache-Control"] = "no-store"  # ✅ never cache room availability
+    response.headers["Cache-Control"] = "no-store"
     service = RoomService(session)
     return await service.list_rooms(hostel_id, room_type_id)
+
+
+# ✅ MUST be defined before /{room_id}/ to avoid FastAPI treating
+#    "room-types" as a UUID path parameter
+@room_public_router.get("/room-types/", response_model=List[RoomTypeRead])
+async def list_room_types(
+    response: Response,
+    hostel_id: Optional[UUID] = Query(None),
+    session: AsyncSession = Depends(get_session)
+):
+    response.headers["Cache-Control"] = "no-store"
+    query = select(RoomType).options(selectinload(RoomType.images))
+    if hostel_id:
+        query = query.where(RoomType.hostel_id == hostel_id)
+    result = await session.execute(query)
+    return result.scalars().all()
 
 
 @room_public_router.get("/{room_id}/", response_model=RoomRead)

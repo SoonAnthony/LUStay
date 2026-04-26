@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Any
 from uuid import UUID
 from enum import Enum
 from pydantic import BaseModel, ConfigDict
@@ -35,10 +35,10 @@ class AmenityRead(AmenityBase):
 # ================================
 class HostelBase(BaseModel):
     name: str
-    description: Optional[str] = None      # FIX: was missing default None
+    description: Optional[str] = None
     location: str
-    latitude: Optional[float] = None       # FIX: was missing default None
-    longitude: Optional[float] = None      # FIX: was missing default None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     status: HostelStatus = HostelStatus.PENDING
     is_featured: bool = False
 
@@ -59,10 +59,10 @@ class HostelUpdate(BaseModel):
 class HostelCreateResponse(BaseModel):
     id: UUID
     name: str
-    description: Optional[str] = None      # FIX: was non-optional — caused 500 if omitted
+    description: Optional[str] = None
     location: str
-    latitude: Optional[float] = None       # FIX: was non-optional — caused 500 if omitted
-    longitude: Optional[float] = None      # FIX: was non-optional — caused 500 if omitted
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     status: str
     is_featured: bool
     owner_id: UUID
@@ -114,6 +114,16 @@ class PaginatedHostelsAdmin(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+# ✅ NEW: used internally by the service so ORM objects are NOT coerced
+# into HostelRead (which strips blocks) before the route can validate them.
+class PaginatedHostelsRaw(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    hostels: List[Any]  # raw ORM objects — no Pydantic coercion
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
 
 # ================================
 # Hostel Image Schemas
@@ -140,7 +150,7 @@ class HostelImageRead(HostelImageBase):
 # ================================
 class HostelBlockBase(BaseModel):
     data: str
-    previous_hash: Optional[str] = None    # FIX: was missing default None
+    previous_hash: Optional[str] = None
     hash: str
 
 class HostelBlockCreate(HostelBlockBase):

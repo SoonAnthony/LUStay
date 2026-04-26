@@ -17,8 +17,6 @@ class RoomTypeImageRead(RoomTypeImageBase):
     model_config = ConfigDict(from_attributes=True)
 
 
-
-
 # RoomType Schemas
 class RoomTypeBase(BaseModel):
     name: str  # "Self" or "Single"
@@ -34,7 +32,6 @@ class RoomTypeRead(RoomTypeBase):
     id: uuid.UUID
     hostel_id: uuid.UUID
     images: Optional[List[RoomTypeImageRead]] = None
-
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -53,6 +50,7 @@ class RoomUpdate(BaseModel):
     room_number: Optional[str] = None
     status: Optional[RoomStatus] = None
     occupants: Optional[int] = None
+    room_type_id: Optional[uuid.UUID] = None  # ✅ added
 
 class RoomRead(RoomBase):
     id: uuid.UUID

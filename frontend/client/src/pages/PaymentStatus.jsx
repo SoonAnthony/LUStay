@@ -14,7 +14,33 @@ const PaymentStatus = () => {
 
   const pollingRef = useRef(null);
   const timerRef = useRef(null);
+  // ✅ Guard so we only call the expire endpoint once
+  const hasExpiredRef = useRef(false);
 
+  // ── Expire reservation on the backend and update UI ──────────
+  const handleExpiry = async () => {
+    // Already handled — don't fire twice
+    if (hasExpiredRef.current) return;
+    hasExpiredRef.current = true;
+
+    // Stop polling immediately — no point checking status anymore
+    clearInterval(pollingRef.current);
+    clearInterval(timerRef.current);
+
+    try {
+      await api.patch(`/bookings/reservations/${id}/expire`);
+    } catch (err) {
+      // Even if the network call fails the TTL will expire server-side
+      // on the next request, so we still transition the UI.
+      console.warn("Expire call failed (TTL will clean up server-side):", err);
+    }
+
+    // Transition UI to expired state regardless of network outcome
+    setTimeLeft(0);
+    setStatus("expired");
+  };
+
+  // ── Countdown timer ───────────────────────────────────────────
   useEffect(() => {
     if (!reservation?.expires_at) return;
 
@@ -23,13 +49,20 @@ const PaymentStatus = () => {
       const expiry = new Date(reservation.expires_at);
       const diff = Math.max(0, Math.floor((expiry - now) / 1000));
       setTimeLeft(diff);
+
+      // ✅ When the countdown reaches zero, expire immediately
+      if (diff === 0) {
+        handleExpiry();
+      }
     };
 
-    tick();
+    tick(); // run once immediately
     timerRef.current = setInterval(tick, 1000);
     return () => clearInterval(timerRef.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reservation?.expires_at]);
 
+  // ── Polling ───────────────────────────────────────────────────
   useEffect(() => {
     const fetchStatus = async () => {
       try {
@@ -41,10 +74,11 @@ const PaymentStatus = () => {
         if (data.status === "converted") {
           setStatus("success");
           clearInterval(pollingRef.current);
+          clearInterval(timerRef.current);
           setTimeout(() => navigate("/bookings", { replace: true }), 2000);
         } else if (data.status === "expired") {
-          setStatus("expired");
-          clearInterval(pollingRef.current);
+          // Server already expired it (e.g. user came back after TTL)
+          handleExpiry();
         } else {
           setStatus("waiting");
         }
@@ -56,8 +90,9 @@ const PaymentStatus = () => {
     };
 
     fetchStatus();
-    pollingRef.current = setInterval(fetchStatus, 1000);
+    pollingRef.current = setInterval(fetchStatus, 3000); // poll every 3s, not 1s
     return () => clearInterval(pollingRef.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, navigate]);
 
   const formatTime = (secs) => {
@@ -78,9 +113,11 @@ const PaymentStatus = () => {
 
           {status === "waiting" && (
             <>
-              <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-600 mx-auto mb-6"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-t-4 border-blue-600 mx-auto mb-6" />
               <h2 className="text-xl font-semibold text-gray-800 mb-2">Waiting for Payment</h2>
-              <p className="text-gray-600">Please check your phone and complete the M-Pesa payment.</p>
+              <p className="text-gray-600">
+                Please check your phone and complete the M-Pesa payment.
+              </p>
 
               {reservation && (
                 <div className="mt-5 bg-gray-50 rounded-xl p-4 text-left space-y-2 text-sm text-gray-600">
@@ -94,7 +131,13 @@ const PaymentStatus = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-700">Reservation expires in</span>
-                    <span className={`font-semibold ${timeLeft <= 30 ? "text-red-500" : "text-blue-600"}`}>
+                    <span
+                      className={`font-semibold tabular-nums ${
+                        timeLeft !== null && timeLeft <= 10
+                          ? "text-red-500"
+                          : "text-blue-600"
+                      }`}
+                    >
                       {formatTime(timeLeft)}
                     </span>
                   </div>
@@ -131,8 +174,10 @@ const PaymentStatus = () => {
           {status === "expired" && (
             <>
               <div className="text-red-500 text-4xl mb-4">✖</div>
-              <h2 className="text-xl font-semibold text-gray-800 mb-2">Payment Expired</h2>
-              <p className="text-gray-600">Your reservation expired before payment was completed.</p>
+              <h2 className="text-xl font-semibold text-gray-800 mb-2">Reservation Expired</h2>
+              <p className="text-gray-600">
+                Your reservation expired before payment was completed. The slot has been released.
+              </p>
 
               {reservation && (
                 <div className="mt-4 bg-red-50 rounded-xl p-4 text-left space-y-2 text-sm text-gray-600">

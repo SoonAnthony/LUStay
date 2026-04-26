@@ -56,16 +56,11 @@ async def get_public_hostels(
     return [HostelRead.model_validate(h) for h in result.hostels]
 
 
-# ✅ MUST be before /{hostel_id} to avoid route conflict
 @hostel_router.get("/my-hostels", response_model=List[HostelRead])
 async def get_my_hostels(
     hostel_service: HostelService = Depends(get_hostel_service),
     current_user: User = Depends(get_current_active_user)
 ):
-    """
-    Returns ALL hostels owned by the current landlord,
-    regardless of status (PENDING, APPROVED, REJECTED, SUSPENDED).
-    """
     if current_user.role not in [UserRole.LANDLORD, UserRole.ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -191,6 +186,8 @@ async def admin_get_all_hostels(
     hostel_service: HostelService = Depends(get_hostel_service),
     _: User = Depends(get_current_admin)
 ):
+    # ✅ get_all_hostels now returns PaginatedHostelsRaw (List[Any]) so the
+    # ORM objects still have .blocks populated from selectinload at this point.
     result = await hostel_service.get_all_hostels(
         limit=limit,
         offset=offset,
@@ -198,8 +195,18 @@ async def admin_get_all_hostels(
         include_blocks=True,
         include_count=True,
     )
-    result.hostels = [HostelAdminRead.model_validate(h) for h in result.hostels]
-    return result
+
+    # ✅ Validate raw ORM objects → HostelAdminRead here, BEFORE Pydantic
+    # touches the list. blocks are still attached to each ORM object so
+    # model_validate correctly serialises the full blockchain history.
+    validated_hostels = [HostelAdminRead.model_validate(h) for h in result.hostels]
+
+    return PaginatedHostelsAdmin(
+        total=result.total,
+        limit=result.limit,
+        offset=result.offset,
+        hostels=validated_hostels,
+    )
 
 
 @admin_hostel_router.patch("/{hostel_id}", response_model=HostelAdminRead)
@@ -210,13 +217,19 @@ async def admin_update_hostel(
     _: User = Depends(get_current_admin)
 ):
     updates = payload.model_dump(exclude_unset=True)
+
     updated_hostel = await hostel_service.update_hostel(hostel_id, **updates)
     if not updated_hostel:
         raise HTTPException(status_code=404, detail="Hostel not found")
 
     await hostel_service.session.commit()
-    await hostel_service.session.refresh(updated_hostel)
-    return HostelAdminRead.model_validate(updated_hostel)
+
+    # ✅ Re-fetch with blocks after commit so the new block is included
+    refreshed = await hostel_service.get_hostel(hostel_id, include_blocks=True)
+    if not refreshed:
+        raise HTTPException(status_code=404, detail="Hostel not found after update")
+
+    return HostelAdminRead.model_validate(refreshed)
 
 
 @admin_hostel_router.patch("/{hostel_id}/featured")

@@ -12,6 +12,7 @@ from typing import List, TYPE_CHECKING
 if TYPE_CHECKING:
     from app.rooms.models import RoomType, Room
 
+
 class HostelAmenity(SQLModel, table=True):
 
     __tablename__ = "hostel_amenities"
@@ -97,23 +98,28 @@ class Hostel(SQLModel, table=True):
             nullable=False
         )
     )
+
     is_deleted: bool = Field(default=False)
     is_featured: bool = Field(default=False)
 
-    # -----------------------------
-    # Relationships
-    # -----------------------------
+    # ── Relationships ────────────────────────────────────────
 
     owner: Optional["User"] = Relationship(back_populates="hostels")
     images: List["HostelImage"] = Relationship(back_populates="hostel")
-    blocks: List["HostelBlock"] = Relationship(back_populates="hostel")
+
+    # ✅ order_by created_at ascending so blockchain history is always
+    # in chronological order when selectinload pulls it in
+    blocks: List["HostelBlock"] = Relationship(
+        back_populates="hostel",
+        sa_relationship_kwargs={"order_by": "HostelBlock.created_at.asc()"},
+    )
+
     amenities: List["Amenity"] = Relationship(
         back_populates="hostels",
         link_model=HostelAmenity
     )
     room_types: List["RoomType"] = Relationship(back_populates="hostel")
     rooms: List["Room"] = Relationship(back_populates="hostel")
-    
 
 
 class HostelImage(SQLModel, table=True):
@@ -170,7 +176,7 @@ class HostelBlock(SQLModel, table=True):
         index=True
     )
 
-    data: str  # JSON snapshot of hostel state
+    data: str
     previous_hash: Optional[str] = None
     hash: str
 
@@ -192,5 +198,3 @@ class HostelBlock(SQLModel, table=True):
     )
 
     hostel: Optional["Hostel"] = Relationship(back_populates="blocks")
-
-

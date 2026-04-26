@@ -6,6 +6,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlmodel import select
 from sqlalchemy import desc, func
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import selectinload
 
 from .models import User, UserRole, LandlordRequest, RequestStatus
 from .schema import (
@@ -365,10 +366,23 @@ class LandlordRequestService:
         session.add(new_request)
         await session.commit()
         await session.refresh(new_request)
-        return new_request
+
+        # ✅ Reload with user relationship
+        result = await session.execute(
+            select(LandlordRequest)
+            .options(selectinload(LandlordRequest.user))
+            .where(LandlordRequest.id == new_request.id)
+        )
+        return result.scalar_one()
 
     async def get_request(self, session: AsyncSession, request_id: uuid.UUID):
-        request = await session.get(LandlordRequest, request_id)
+        # ✅ Eager-load user
+        result = await session.execute(
+            select(LandlordRequest)
+            .options(selectinload(LandlordRequest.user))
+            .where(LandlordRequest.id == request_id)
+        )
+        request = result.scalar_one_or_none()
         if not request:
             raise HTTPException(status_code=404, detail="Landlord request not found")
         return request
@@ -379,10 +393,14 @@ class LandlordRequestService:
         limit: int = 50,
         offset: int = 0
     ):
-        result = await session.exec(
-            select(LandlordRequest).offset(offset).limit(limit)
+        # ✅ Eager-load user on all requests
+        result = await session.execute(
+            select(LandlordRequest)
+            .options(selectinload(LandlordRequest.user))
+            .offset(offset)
+            .limit(limit)
         )
-        return result.all()
+        return result.scalars().all()
 
     async def update_request(
         self,
@@ -413,5 +431,12 @@ class LandlordRequestService:
 
         session.add(request)
         await session.commit()
-        await session.refresh(request)
-        return request
+        
+
+        # ✅ Reload with user relationship
+        result = await session.execute(
+            select(LandlordRequest)
+            .options(selectinload(LandlordRequest.user))
+            .where(LandlordRequest.id == request_id)
+        )
+        return result.scalar_one()

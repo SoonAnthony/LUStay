@@ -1,44 +1,53 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import api from "../../api/axios";
+import api from "../../api/axios";   // ✅ correct path — adjust if your file is src/api.js → "../../api"
 
+// ─────────────────────────────────────────────────────────────
+// Thunks
+// ─────────────────────────────────────────────────────────────
+
+// 🔐 LOGIN
 export const loginUser = createAsyncThunk(
   "auth/loginUser",
   async ({ email, password }, { rejectWithValue }) => {
     try {
-      const res = await api.post("/users/login", { email, password });
-      return res.data;
+      await api.post("/users/login", { email, password });
+      const res = await api.get("/users/me");
+      return res.data;   // full user object including .role
     } catch (err) {
       return rejectWithValue(err.response?.data?.detail || "Login failed");
     }
   }
 );
 
-export const logoutUser = createAsyncThunk(
-  "auth/logoutUser",
-  async (_, { rejectWithValue }) => {
-    try {
-      await api.post("/users/logout");
-    } catch (err) {}
-  }
-);
-
-// ✅ Thunk to restore session on page refresh
+// 🔄 RESTORE SESSION on app load
 export const restoreSession = createAsyncThunk(
   "auth/restoreSession",
   async (_, { rejectWithValue }) => {
     try {
       const res = await api.get("/users/me");
       return res.data;
-    } catch (err) {
-      return rejectWithValue(null); // not an error — just not logged in
+    } catch {
+      return rejectWithValue(null);
     }
   }
 );
 
+// 🚪 LOGOUT
+export const logoutUser = createAsyncThunk(
+  "auth/logoutUser",
+  async () => {
+    await api.post("/users/logout");
+  }
+);
+
+// ─────────────────────────────────────────────────────────────
+// Slice
+// ─────────────────────────────────────────────────────────────
+
 const initialState = {
   user:            null,
   isAuthenticated: false,
-  authReady:       false,   // ✅ false until session check completes
+  authReady:       false,
   loading:         false,
   error:           null,
 };
@@ -47,19 +56,11 @@ const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
-    setCredentials: (state, action) => {
-      if (action.payload.user) {
-        state.user            = action.payload.user;
-        state.isAuthenticated = true;
-      }
-      state.authReady = true;
-    },
     logout: (state) => {
       state.user            = null;
       state.isAuthenticated = false;
-      state.loading         = false;
-      state.error           = null;
       state.authReady       = true;
+      state.error           = null;
     },
     clearError: (state) => {
       state.error = null;
@@ -67,7 +68,7 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // loginUser
+      // ── LOGIN ────────────────────────────────────────
       .addCase(loginUser.pending, (state) => {
         state.loading = true;
         state.error   = null;
@@ -80,36 +81,36 @@ const authSlice = createSlice({
         state.error           = null;
       })
       .addCase(loginUser.rejected, (state, action) => {
-        state.loading   = false;
-        state.error     = action.payload || "Login failed";
-        state.authReady = true;
-      })
-
-      // logoutUser
-      .addCase(logoutUser.fulfilled, (state) => {
-        state.user            = null;
-        state.isAuthenticated = false;
         state.loading         = false;
-        state.error           = null;
+        state.isAuthenticated = false;
         state.authReady       = true;
+        state.error           = action.payload;
       })
 
-      // restoreSession
+      // ── RESTORE SESSION ──────────────────────────────
       .addCase(restoreSession.pending, (state) => {
-        state.authReady = false; // ✅ wait until check completes
+        state.authReady = false;
       })
       .addCase(restoreSession.fulfilled, (state, action) => {
         state.user            = action.payload;
         state.isAuthenticated = true;
-        state.authReady       = true; // ✅ session restored
+        state.authReady       = true;
       })
       .addCase(restoreSession.rejected, (state) => {
         state.user            = null;
         state.isAuthenticated = false;
-        state.authReady       = true; // ✅ no session but check is done
+        state.authReady       = true;
+      })
+
+      // ── LOGOUT ──────────────────────────────────────
+      .addCase(logoutUser.fulfilled, (state) => {
+        state.user            = null;
+        state.isAuthenticated = false;
+        state.authReady       = true;
+        state.error           = null;
       });
   },
 });
 
-export const { setCredentials, logout, clearError } = authSlice.actions;
+export const { logout, clearError } = authSlice.actions;
 export default authSlice.reducer;

@@ -1,6 +1,8 @@
-from fastapi import Depends, HTTPException, Request, status
+from typing import Optional
+from fastapi import Depends, HTTPException, status, Cookie
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
+import uuid
 
 from app.db.engine import get_session
 from app.user.models import User, UserRole
@@ -8,19 +10,16 @@ from app.user.utils import decode_access_token
 
 
 async def get_current_user(
-    request: Request,
+    access_token: Optional[str] = Cookie(default=None),
     session: AsyncSession = Depends(get_session)
 ) -> User:
-    # ✅ read token from HttpOnly cookie — not Authorization header
-    token = request.cookies.get("access_token")
-
-    if not token:
+    if not access_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated"
         )
 
-    payload = decode_access_token(token)
+    payload = decode_access_token(access_token)
     if payload is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -34,8 +33,16 @@ async def get_current_user(
             detail="Token payload invalid"
         )
 
-    result = await session.exec(select(User).where(User.id == user_id))
-    user = result.one_or_none()
+    try:
+        user_uuid = uuid.UUID(user_id)  # ✅ cast string → UUID
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token payload invalid"
+        )
+
+    result = await session.execute(select(User).where(User.id == user_uuid))  # ✅ user_uuid
+    user = result.scalar_one_or_none()
 
     if user is None:
         raise HTTPException(

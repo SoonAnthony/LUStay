@@ -140,9 +140,20 @@ class LandlordRequestCreate(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+# ✅ Nested user info returned with each request
+class LandlordRequestUserInfo(BaseModel):
+    id: uuid.UUID
+    first_name: str
+    last_name: str
+    email: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class LandlordRequestRead(LandlordRequestCreate):
     id: uuid.UUID
     user_id: uuid.UUID
+    user: Optional[LandlordRequestUserInfo] = None  # ✅ nested user info
     status: RequestStatus
     rejection_reason: Optional[str]
     submitted_at: datetime

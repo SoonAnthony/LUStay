@@ -4,13 +4,16 @@ import { useDispatch, useSelector } from "react-redux";
 import { loginUser } from "../features/auth/authSlice";
 import Footer from "../components/Footer";
 
-// ── Role → destination ────────────────────────────────────────
-const getRoleDestination = (role) => {
-  const r = role?.toUpperCase();
-  if (r === "LANDLORD") return "/landlord/dashboard";
-  if (r === "ADMIN")    return "/admin/dashboard";
-  return "/profile"; // STUDENT default
+// ── Role → dashboard path mapping ────────────────────────────
+const ROLE_HOME = {
+  ADMIN:    "/admin/dashboard",
+  LANDLORD: "/landlord/dashboard",
+  STUDENT:  "/profile",           // students go to their profile
 };
+
+const getHomeForRole = (role) => ROLE_HOME[role?.toUpperCase()] ?? "/";
+
+// ─────────────────────────────────────────────────────────────
 
 const Login = () => {
   const dispatch = useDispatch();
@@ -19,14 +22,15 @@ const Login = () => {
 
   const { error } = useSelector((state) => state.auth);
 
-  const [email,        setEmail]        = useState("");
-  const [password,     setPassword]     = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [submitting,   setSubmitting]   = useState(false);
-  const [flashMessage, setFlashMessage] = useState(null);
-  const [flashType,    setFlashType]    = useState("success");
+  const [email,         setEmail]         = useState("");
+  const [password,      setPassword]      = useState("");
+  const [showPassword,  setShowPassword]  = useState(false);
+  const [submitting,    setSubmitting]    = useState(false);
+  const [flashMessage,  setFlashMessage]  = useState(null);
+  const [flashType,     setFlashType]     = useState("success");
 
-  const from = location.state?.from?.pathname || null;
+  // Where to go after login — respect redirect-from, else role home
+  const from = location.state?.from?.pathname;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -36,26 +40,20 @@ const Login = () => {
       const resultAction = await dispatch(loginUser({ email, password }));
 
       if (loginUser.fulfilled.match(resultAction)) {
+        const user = resultAction.payload;
+
         setFlashType("success");
         setFlashMessage("Login Successful 🎉");
 
-        const user = resultAction.payload;
-
         setTimeout(() => {
-          // If user was trying to reach a specific page, honour it
-          // but never send a landlord to /profile or a student to /landlord/dashboard
+          // If there's a valid "from" path, honour it.
+          // Otherwise send the user to their role-specific dashboard.
           if (from && from !== "/" && from !== "/login") {
             navigate(from, { replace: true });
           } else {
-            // Check bookings intent for students
-            const raw = sessionStorage.getItem("bookings_intent");
-            if (raw && user?.role?.toUpperCase() === "STUDENT") {
-              navigate("/bookings", { replace: true });
-            } else {
-              navigate(getRoleDestination(user?.role), { replace: true });
-            }
+            navigate(getHomeForRole(user.role), { replace: true });
           }
-        }, 1500);
+        }, 1200);
       }
 
       if (loginUser.rejected.match(resultAction)) {
@@ -64,7 +62,8 @@ const Login = () => {
         setTimeout(() => setFlashMessage(null), 3000);
         setSubmitting(false);
       }
-    } catch (err) {
+
+    } catch {
       setFlashType("error");
       setFlashMessage("Something went wrong. Please try again.");
       setTimeout(() => setFlashMessage(null), 3000);
@@ -74,7 +73,7 @@ const Login = () => {
 
   return (
     <>
-      {/* FLASH MESSAGE */}
+      {/* ── FLASH MESSAGE ──────────────────────────────── */}
       {flashMessage && (
         <div
           className={`fixed top-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-5 py-3 rounded-2xl shadow-xl text-sm font-medium
@@ -110,7 +109,7 @@ const Login = () => {
               <p className="text-sm text-gray-400 mt-1">Login to your LUStay account</p>
             </div>
 
-            {/* ERROR */}
+            {/* REDUX ERROR (shown only when not mid-submit) */}
             {error && !submitting && (
               <div className="bg-red-50 border border-red-100 text-red-500 text-sm px-3 py-2 rounded-xl mb-5">
                 {error}
@@ -160,15 +159,10 @@ const Login = () => {
                 className={`w-full py-2.5 rounded-xl text-sm font-medium text-white transition flex items-center justify-center gap-2
                   ${submitting ? "bg-blue-400 cursor-not-allowed" : "bg-blue-500 hover:bg-blue-600"}`}
               >
-                {submitting ? (
-                  <>
-                    <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                    </svg>
-                    Logging in...
-                  </>
-                ) : "Login"}
+                {submitting && (
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                )}
+                {submitting ? "Logging in..." : "Login"}
               </button>
             </form>
 

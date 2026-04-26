@@ -96,7 +96,7 @@ const LandlordBanner = ({ request, loading }) => {
       </div>
       <button
         onClick={() => navigate("/become-landlord")}
-        className="text-xs px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-colors flex-shrink-0"
+        className="text-xs px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-colors shrink-0"
       >
         Apply →
       </button>
@@ -109,7 +109,7 @@ const LandlordBanner = ({ request, loading }) => {
         <p className="text-sm font-semibold text-amber-800">Landlord request pending</p>
         <p className="text-xs text-amber-600 mt-0.5">Our team is reviewing your application</p>
       </div>
-      <span className="flex items-center gap-1.5 text-xs text-amber-700 font-medium flex-shrink-0">
+      <span className="flex items-center gap-1.5 text-xs text-amber-700 font-medium shrink-0">
         <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
         Under review
       </span>
@@ -126,7 +126,7 @@ const LandlordBanner = ({ request, loading }) => {
       </div>
       <button
         onClick={() => navigate("/become-landlord")}
-        className="text-xs px-4 py-2 border border-red-200 text-red-500 hover:bg-red-100 rounded-xl transition-colors flex-shrink-0"
+        className="text-xs px-4 py-2 border border-red-200 text-red-500 hover:bg-red-100 rounded-xl transition-colors shrink-0"
       >
         Reapply →
       </button>
@@ -307,7 +307,7 @@ const Profile = () => {
 
                 <button
                   onClick={() => setEditing(!editing)}
-                  className="text-xs px-4 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors flex-shrink-0"
+                  className="text-xs px-4 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors shrink-0"
                 >
                   {editing ? "Cancel" : "Edit"}
                 </button>
