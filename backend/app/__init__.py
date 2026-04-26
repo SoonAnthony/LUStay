@@ -62,7 +62,7 @@ api_v1_router = APIRouter(prefix="/api/v1")
 
 api_v1_router.include_router(user_router, prefix="/users", tags=["Users"])
 api_v1_router.include_router(admin_router)
-api_v1_router.include_router(landlord_router, tags=["Landlord Requests"])
+api_v1_router.include_router(landlord_router, prefix="/users", tags=["Landlord Requests"])
 api_v1_router.include_router(admin_landlord_router)
 api_v1_router.include_router(profile_image_router)
 api_v1_router.include_router(document_router)
