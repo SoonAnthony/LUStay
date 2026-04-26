@@ -109,7 +109,7 @@ function Toast({ message, type, onClose }) {
   };
   const Icon = type === "success" ? CheckCircle2 : type === "error" ? AlertCircle : Bell;
   return (
-    <div className={`fixed bottom-20 lg:bottom-6 left-4 right-4 lg:left-auto lg:right-6 lg:max-w-sm z-[200] flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-lg text-sm font-medium ${styles[type] || styles.info}`}
+    <div className={`fixed bottom-20 lg:bottom-6 left-4 right-4 lg:left-auto lg:right-6 lg:max-w-sm z-200 flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-lg text-sm font-medium ${styles[type] || styles.info}`}
       style={{ animation: "slideUp .2s ease both" }}>
       <Icon size={15} className="shrink-0" />
       <span className="flex-1">{String(message)}</span>
@@ -164,7 +164,7 @@ function DocumentViewerModal({ doc, onClose }) {
   const viewUrl = getViewUrl(url);
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex flex-col">
+    <div className="fixed inset-0 z-200 bg-black/60 backdrop-blur-sm flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100 shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -240,7 +240,7 @@ function DocButton({ label, url, onView }) {
 // ── CONFIRM MODAL ─────────────────────────────────────────────
 function ConfirmModal({ title, message, onConfirm, onCancel, danger = true, loading = false, children }) {
   return (
-    <div className="fixed inset-0 z-[150] bg-black/20 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div className="fixed inset-0 z-150 bg-black/20 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="bg-white border border-gray-100 rounded-t-3xl sm:rounded-2xl p-6 w-full sm:max-w-sm shadow-xl">
         <h3 className="text-base font-semibold text-gray-900 mb-1">{title}</h3>
         <p className="text-sm text-gray-500 mb-4">{message}</p>
@@ -399,7 +399,7 @@ function OverviewTab({ showToast, onNavigate }) {
         </div>
       )}
 
-      <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-5 text-white">
+      <div className="bg-linear-to-br from-blue-500 to-blue-600 rounded-2xl p-5 text-white">
         <p className="text-xs text-blue-100 uppercase tracking-wide mb-1">Total payments collected</p>
         <p className="text-3xl font-bold">KSh {stats?.revenue?.toLocaleString() || "0"}</p>
         <p className="text-xs text-blue-200 mt-1">Across {stats?.totalBookings} booking{stats?.totalBookings !== 1 ? "s" : ""}</p>
@@ -556,7 +556,7 @@ function UsersTab({ showToast }) {
       )}
 
       {editUser && (
-        <div className="fixed inset-0 z-[150] bg-black/20 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-150 bg-black/20 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-white border border-gray-100 rounded-t-3xl sm:rounded-2xl p-6 w-full sm:max-w-sm shadow-xl">
             <div className="flex justify-between items-center mb-5">
               <h3 className="font-semibold text-gray-900">Edit User</h3>
@@ -755,7 +755,7 @@ function LandlordRequestsTab({ showToast }) {
 
       {/* Reject reason bottom sheet */}
       {rejectModal && (
-        <div className="fixed inset-0 z-[150] bg-black/20 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-150 bg-black/20 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-white border border-gray-100 rounded-t-3xl sm:rounded-2xl p-6 w-full sm:max-w-sm shadow-xl">
             <h3 className="font-semibold text-gray-900 mb-1">Reject Request</h3>
             <p className="text-sm text-gray-500 mb-4">Provide a reason visible to the applicant.</p>
@@ -1079,7 +1079,7 @@ function RoomsTab({ showToast }) {
       )}
 
       {editRoom && (
-        <div className="fixed inset-0 z-[150] bg-black/20 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-150 bg-black/20 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-white border border-gray-100 rounded-t-3xl sm:rounded-2xl p-6 w-full sm:max-w-sm shadow-xl">
             <div className="flex justify-between items-center mb-5">
               <h3 className="font-semibold text-gray-900">Edit Room <span className="font-mono text-blue-500">{editRoom.room_number}</span></h3>
@@ -1366,7 +1366,7 @@ export default function AdminDashboard() {
           </header>
 
           <main
-            className={`flex-1 px-4 sm:px-6 py-5 pb-24 lg:pb-8 bg-gradient-to-b ${TAB_TINT[activeTab]} tab-content`}
+            className={`flex-1 px-4 sm:px-6 py-5 pb-24 lg:pb-8 bg-linear-to-b ${TAB_TINT[activeTab]} tab-content`}
             key={activeTab}
           >
             <div className="max-w-3xl mx-auto">
