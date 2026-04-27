@@ -12,7 +12,7 @@ const pillars = [
   {
     icon: ShieldCheck, color: "green",
     title: "Trust & Safety",
-    desc: "Only verified and approved listings reach students. No fraud, no guesswork — every hostel is reviewed before it goes live.",
+    desc: "Only verified and approved listings reach students. No fraud, no guesswork - every hostel is reviewed before it goes live.",
   },
   {
     icon: Building2, color: "blue",
@@ -22,7 +22,7 @@ const pillars = [
   {
     icon: Users, color: "cyan",
     title: "Students First",
-    desc: "Designed around real student challenges — limited housing, scattered info, and tight budgets — LUStay puts solutions at your fingertips.",
+    desc: "Designed around real student challenges - limited housing, scattered info, and tight budgets - LUStay puts solutions at your fingertips.",
   },
   {
     icon: BarChart3, color: "lime",
@@ -177,10 +177,7 @@ const AboutUs = () => {
             </h2>
             <div className="space-y-4 text-gray-600 text-base leading-relaxed">
               <p>
-                Every semester, Laikipia University students face the same frustrating
-                cycle, limited on-campus hostels, scattered hostel listings across
-                WhatsApp and Facebook groups, and the ever-present risk of renting
-                from unverified landlords.
+                Every semester, Laikipia University students go through the same frustrating cycle: limited on-campus accommodation, scattered hostel listings across WhatsApp and Facebook groups, and the constant risk of dealing with unverified landlords.
               </p>
               <p>
                 LUStay was created to solve exactly that. We built a centralized digital
