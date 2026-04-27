@@ -1,10 +1,13 @@
 import React from "react";
+import AboutUs from "../components/AboutUs";
+import Footer from "../components/Footer";
 
 const About = () => {
   return (
-    <div className="text-center mt-10">
-      <h1 className="text-3xl font-bold">About LUStay</h1>
-    </div>
+    <>
+      <AboutUs />
+      <Footer />
+    </>
   );
 };
 
