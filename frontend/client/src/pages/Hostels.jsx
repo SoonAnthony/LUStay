@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import api from "../api/axios";
 import HostelCard, { HostelCardSkeleton } from "../components/HostelCard";
 import Footer from "../components/Footer";
@@ -10,6 +10,14 @@ const Hostels = () => {
   const [search, setSearch] = useState("");
 
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // On mount, read ?search= from URL and pre-fill the search box
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const q = params.get("search") || "";
+    setSearch(q);
+  }, [location.search]);
 
   useEffect(() => {
     api
@@ -23,6 +31,19 @@ const Hostels = () => {
         setLoading(false);
       });
   }, []);
+
+  // Keep URL in sync as user types in the search box on this page
+  const handleSearchChange = (e) => {
+    const val = e.target.value;
+    setSearch(val);
+    const params = new URLSearchParams(location.search);
+    if (val.trim()) {
+      params.set("search", val.trim());
+    } else {
+      params.delete("search");
+    }
+    navigate(`/hostels?${params.toString()}`, { replace: true });
+  };
 
   const filteredHostels = hostels.filter((h) =>
     h.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -44,7 +65,7 @@ const Hostels = () => {
                 ? "Loading..."
                 : `${filteredHostels.length} hostel${
                     filteredHostels.length !== 1 ? "s" : ""
-                  } found`}
+                  } found${search ? ` for "${search}"` : ""}`}
             </p>
           </div>
 
@@ -54,7 +75,7 @@ const Hostels = () => {
               type="text"
               placeholder="Search by location or hostel name..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={handleSearchChange}
               className="w-full max-w-2xl px-5 py-3 rounded-xl border border-gray-300
                          focus:outline-none focus:ring-2 focus:ring-blue-400
                          shadow-sm bg-white"
