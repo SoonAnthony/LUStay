@@ -136,6 +136,25 @@ async def refund_request(
 
     return payment
 
+
+@payments_router.get("/by-booking/{booking_id}", response_model=PaymentRead)
+async def get_payment_by_booking(
+    booking_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_landlord_or_admin),
+):
+    payment = (
+        await session.exec(
+            select(Payment).where(Payment.booking_id == booking_id)
+        )
+    ).first()
+
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+    return payment
+
+
 @payments_router.get("/", response_model=list[PaymentRead])
 async def list_payments(
     status: Optional[str] = None,
