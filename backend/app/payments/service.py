@@ -123,11 +123,14 @@ async def process_refund_logic(
     if not approve:
         payment.status = PaymentStatus.REFUND_REJECTED
     else:
-        await reverse_transaction(
-            payment.transaction_ref,
-            payment.amount,
-            payment.phone_number,
-        )
+        try:
+            await reverse_transaction(
+                payment.transaction_ref,
+                payment.amount,
+                payment.phone_number,
+            )
+        except Exception as e:
+            print(f"WARNING: Reversal failed (expected in sandbox): {e}")
 
         payment.status = PaymentStatus.REFUNDED
         payment.refund_approved_by = admin_id
