@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from enum import Enum
 from typing import Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import Column, DateTime, func
@@ -11,13 +12,14 @@ if TYPE_CHECKING:
     from app.bookings.models import Booking
 
 
-class PaymentStatus(str):
-    PENDING = "PENDING"
-    SUCCESS = "SUCCESS"
-    FAILED = "FAILED"
+# ✅ FIX: PaymentStatus must be a proper Enum so values are queryable and comparable
+class PaymentStatus(str, Enum):
+    PENDING          = "PENDING"
+    SUCCESS          = "SUCCESS"
+    FAILED           = "FAILED"
     REFUND_REQUESTED = "REFUND_REQUESTED"
-    REFUNDED = "REFUNDED"
-    REFUND_REJECTED = "REFUND_REJECTED"
+    REFUNDED         = "REFUNDED"
+    REFUND_REJECTED  = "REFUND_REJECTED"
 
 
 class Payment(SQLModel, table=True):
@@ -28,7 +30,12 @@ class Payment(SQLModel, table=True):
         sa_column=Column(UUID(as_uuid=True), primary_key=True, nullable=False),
     )
 
-    booking_id: uuid.UUID = Field(foreign_key="bookings.id", nullable=True)
+    # ✅ FIX: Properly typed as Optional to match nullable=True
+    booking_id: Optional[uuid.UUID] = Field(
+        default=None,
+        foreign_key="bookings.id",
+        nullable=True,
+    )
 
     amount: int = Field(nullable=False)
     phone_number: str = Field(nullable=False)
@@ -48,7 +55,11 @@ class Payment(SQLModel, table=True):
     refunded_at: Optional[datetime] = None
 
     created_at: datetime = Field(
-        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+        sa_column=Column(
+            DateTime(timezone=True),
+            server_default=func.now(),
+            nullable=False,
+        )
     )
 
     # Relationships
