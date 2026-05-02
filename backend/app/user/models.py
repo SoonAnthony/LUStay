@@ -1,6 +1,6 @@
 from typing import Optional, List
 from sqlmodel import SQLModel, Field, Relationship, text, Index
-from sqlalchemy import Column, func, DateTime
+from sqlalchemy import Column, func, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import ENUM as PGEnum, UUID
 import enum
 import uuid
@@ -131,9 +131,12 @@ class LandlordRequest(SQLModel, table=True):
 
     # User who made the request
     user_id: uuid.UUID = Field(
-        foreign_key="users.id",
-        nullable=False,
-        index=True
+        sa_column=Column(
+            UUID(as_uuid=True),
+            ForeignKey("users.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True
+        )
     )
     user: Optional[User] = Relationship(
         back_populates="landlord_requests",
@@ -154,10 +157,12 @@ class LandlordRequest(SQLModel, table=True):
 
     # Admin who approved/rejected
     admin_id: Optional[uuid.UUID] = Field(
-        foreign_key="users.id",
-        default=None,
-        nullable=True,
-        index=True
+        sa_column=Column(
+            UUID(as_uuid=True),
+            ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True
+        )
     )
     admin: Optional[User] = Relationship(
         back_populates="reviewed_requests",
