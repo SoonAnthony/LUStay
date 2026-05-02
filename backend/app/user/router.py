@@ -3,7 +3,6 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from typing import List
 from uuid import UUID
 from sqlmodel import select
-
 from app.db.engine import get_session
 from app.user.service import UserService, LandlordRequestService
 from app.user.schema import (
@@ -36,8 +35,8 @@ from app.core.config import settings
 # ── COOKIE SETTINGS ───────────────────────────────────────────
 COOKIE_MAX_AGE_ACCESS  = 15 * 60            # 15 minutes
 COOKIE_MAX_AGE_REFRESH = 7 * 24 * 60 * 60  # 7 days
-COOKIE_SECURE          = False              # ✅ set True in production
-COOKIE_SAMESITE        = "lax"             # ✅ set "strict" in production
+COOKIE_SECURE          = settings.COOKIE_SECURE
+COOKIE_SAMESITE        = settings.COOKIE_SAMESITE
 
 
 user_router  = APIRouter(tags=["Users"])
