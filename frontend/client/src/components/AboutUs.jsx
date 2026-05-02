@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import { ShieldCheck, Users, Building2, BarChart3, Heart } from "lucide-react";
 
@@ -308,10 +309,10 @@ const AboutUs = () => {
           Join hundreds of Laikipia University students who have found safe,
           affordable accommodation through LUStay.
         </p>
-        <a
-          href="/hostels"
+        <Link
+          to="/hostels"
           className="bg-lime-500 text-white px-8 py-3 rounded-xl inline-block font-semibold
-                     hover:bg-lime-600 hover:scale-105 active:scale-95 transition-all duration-300"
+                    hover:bg-lime-600 hover:scale-105 active:scale-95 transition-all duration-300"
           style={{
             opacity: ctaInView ? 1 : 0,
             transform: ctaInView ? "translateY(0)" : "translateY(30px)",
@@ -319,7 +320,7 @@ const AboutUs = () => {
           }}
         >
           Browse Hostels
-        </a>
+        </Link>
       </section>
 
       <style>{`
