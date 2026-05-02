@@ -145,7 +145,7 @@ async def convert_reservation_to_booking_logic(
         total_price = room_type.price_single
 
     # Deposit = 20% of total price, rounded down to nearest integer
-    deposit_amount = 1 #(total_price * 20) // 100
+    deposit_amount = (total_price * 20) // 100
 
     booking = Booking(
         user_id=reservation.user_id,
