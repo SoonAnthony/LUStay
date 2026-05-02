@@ -23,7 +23,7 @@ import PaymentStatus from "./pages/PaymentStatus";
 import Profile from "./pages/Profile";
 import ConfirmPage from "./pages/ConfirmPage";
 import BecomeLandlord from "./pages/BecomeLandlord";
-import LandlordDashboard from "./pages/LandlordDashboard";
+import LandlordDashboard from "./pages/LandlordDashboard"; 
 import ChangeEmail from "./pages/ChangeEmail";
 import ChangePassword from "./pages/ChangePassword";
 import ChangePhone from "./pages/ChangePhone";
