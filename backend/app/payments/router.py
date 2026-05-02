@@ -1,7 +1,8 @@
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
-import uuid
+
 from app.db.engine import get_session
 from app.payments.schema import (
     PaymentInitiate,
@@ -36,15 +37,13 @@ async def initiate(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_active_user),
 ):
-    # Find reservation
-    reservation = await session.get(Reservation, data.booking_id)
+    # ✅ FIX: Field is now reservation_id (matches schema rename)
+    reservation = await session.get(Reservation, data.reservation_id)
     if not reservation:
         raise HTTPException(status_code=404, detail="Reservation not found")
 
-    # Run pure logic
     payment, reservation = await initiate_payment_logic(reservation, data.phone_number)
 
-    # Commit here
     session.add_all([payment, reservation])
     await session.commit()
     await session.refresh(payment)
@@ -59,36 +58,47 @@ async def callback(
     request: Request,
     session: AsyncSession = Depends(get_session),
 ):
+    # ✅ FIX: Only parse raw body once for debugging — don't call payload.dict() twice
     data = await request.json()
     print("RAW MPESA CALLBACK:", data)
 
-    body = payload.dict().get("Body", {})
-    stk_callback = body.get("stkCallback", {})
-    checkout_id = stk_callback.get("CheckoutRequestID")
+    stk_callback = payload.Body.stkCallback
+    checkout_id = stk_callback.CheckoutRequestID
 
-    payment = (await session.exec(
-        select(Payment).where(Payment.checkout_request_id == checkout_id)
-    )).first()
+    payment = (
+        await session.exec(
+            select(Payment).where(Payment.checkout_request_id == checkout_id)
+        )
+    ).first()
 
-    reservation = (await session.exec(
-        select(Reservation).where(Reservation.mpesa_checkout_request_id == checkout_id)
-    )).first()
+    reservation = (
+        await session.exec(
+            select(Reservation).where(
+                Reservation.mpesa_checkout_request_id == checkout_id
+            )
+        )
+    ).first()
+
+    if not payment:
+        # Callback arrived for an unknown checkout — log and acknowledge
+        print(f"WARNING: No payment found for checkout_id={checkout_id}")
+        return {"status": "ok", "payment_id": None}
 
     payment, booking, updated_reservation = await handle_callback_logic(
         payload.dict(), payment, reservation, session
     )
 
     objects = [payment]
+
     if booking:
         session.add(booking)
         await session.commit()
-        session.expire_all()  # ✅ clear identity map after first commit
+        session.expire_all()
         await session.refresh(booking)
 
         payment.booking_id = booking.id
         objects.append(payment)
 
-        # refresh room to get updated status
         room = await session.get(Room, booking.room_id)
         if room:
             await session.refresh(room)
@@ -98,13 +108,14 @@ async def callback(
 
     session.add_all(objects)
     await session.commit()
-    session.expire_all()  # ✅ clear identity map after second commit
+    session.expire_all()
 
     await session.refresh(payment)
     if booking:
         await session.refresh(booking)
 
     return {"status": "ok", "payment_id": str(payment.id)}
+
 
 @payments_router.post("/{payment_id}/request-refund", response_model=PaymentRead)
 async def refund_request(
@@ -117,10 +128,8 @@ async def refund_request(
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
 
-    # Run pure logic
     payment = await request_refund_logic(payment, current_user.id, data.reason)
 
-    # Commit here
     session.add(payment)
     await session.commit()
     await session.refresh(payment)
@@ -139,10 +148,11 @@ async def refund_process(
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
 
-    # Run pure logic
-    payment, booking, room = await process_refund_logic(payment, current_user.id, data.approve)
+    # ✅ FIX: Pass session so process_refund_logic can fetch real DB rows
+    payment, booking, room = await process_refund_logic(
+        payment, current_user.id, data.approve, session
+    )
 
-    # Commit here
     objects = [payment]
     if booking:
         objects.append(booking)
