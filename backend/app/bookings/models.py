@@ -11,11 +11,11 @@ if TYPE_CHECKING:
     from app.rooms.models import Room
     from app.payments.models import Payment
 
-# Reservation
+
 class ReservationStatus(str, Enum):
-    ACTIVE = "active"       # Slot is held, awaiting payment
-    EXPIRED = "expired"     # TTL passed, slot released
-    CONVERTED = "converted" # Payment confirmed, booking created
+    ACTIVE = "active"
+    EXPIRED = "expired"
+    CONVERTED = "converted"
 
 
 class Reservation(SQLModel, table=True):
@@ -25,17 +25,30 @@ class Reservation(SQLModel, table=True):
         default_factory=uuid.uuid4,
         sa_column=Column(UUID(as_uuid=True), primary_key=True, nullable=False)
     )
+
+    # CASCADE: if user is deleted, their reservations are deleted too
     user_id: uuid.UUID = Field(
-        sa_column=Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+        sa_column=Column(
+            UUID(as_uuid=True),
+            ForeignKey("users.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True
+        )
     )
+
+    # CASCADE: if room is deleted, reservations for it are deleted too
     room_id: uuid.UUID = Field(
-        sa_column=Column(UUID(as_uuid=True), ForeignKey("rooms.id"), nullable=False)
+        sa_column=Column(
+            UUID(as_uuid=True),
+            ForeignKey("rooms.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True
+        )
     )
 
     semester: str = Field(nullable=False)
     is_shared: bool = Field(default=False)
 
-    # M-Pesa checkout request ID returned after STK push
     mpesa_checkout_request_id: str | None = Field(default=None, index=True)
 
     status: ReservationStatus = Field(default=ReservationStatus.ACTIVE)
@@ -55,10 +68,10 @@ class Reservation(SQLModel, table=True):
     user: Optional["User"] = Relationship()
     room: Optional["Room"] = Relationship()
 
-# Booking
+
 class BookingStatus(str, Enum):
-    CONFIRMED = "CONFIRMED"   # deposit paid, booking secured
-    ACTIVE = "ACTIVE"         # full balance paid
+    CONFIRMED = "CONFIRMED"
+    ACTIVE = "ACTIVE"
     CANCELLED = "CANCELLED"
 
 
@@ -69,25 +82,34 @@ class Booking(SQLModel, table=True):
         default_factory=uuid.uuid4,
         sa_column=Column(UUID(as_uuid=True), primary_key=True, nullable=False)
     )
+
+    # CASCADE: if user is deleted, their bookings are deleted too
     user_id: uuid.UUID = Field(
-        sa_column=Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+        sa_column=Column(
+            UUID(as_uuid=True),
+            ForeignKey("users.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True
+        )
     )
+
+    # CASCADE: if room is deleted, bookings for it are deleted too
     room_id: uuid.UUID = Field(
-        sa_column=Column(UUID(as_uuid=True), ForeignKey("rooms.id"), nullable=False)
+        sa_column=Column(
+            UUID(as_uuid=True),
+            ForeignKey("rooms.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True
+        )
     )
 
     semester: str = Field(nullable=False)
     is_shared: bool = Field(default=False)
 
-    # Snapshot of student's payable price (solo = full, shared = per-head share)
     total_price: int = Field(nullable=False)
-
-    # Deposit = 20% of total_price
     deposit_amount: int = Field(nullable=False)
-
     amount_paid: int = Field(default=0)
 
-    # Default is CONFIRMED since bookings only exist post-payment
     status: str = Field(default=BookingStatus.CONFIRMED)
 
     created_at: datetime = Field(

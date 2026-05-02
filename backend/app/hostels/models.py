@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Optional, List
 from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Column, Enum as SQLEnum, DateTime, func
+from sqlalchemy import Column, Enum as SQLEnum, DateTime, func, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from app.user.models import User
 import enum
@@ -76,10 +76,15 @@ class Hostel(SQLModel, table=True):
         )
     )
 
-    owner_id: uuid.UUID = Field(
-        foreign_key="users.id",
-        nullable=False,
-        index=True
+    # SET NULL: if owner (landlord) is deleted, keep the hostel but clear owner
+    owner_id: Optional[uuid.UUID] = Field(
+        default=None,
+        sa_column=Column(
+            UUID(as_uuid=True),
+            ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True
+        )
     )
 
     created_at: datetime = Field(
@@ -107,8 +112,6 @@ class Hostel(SQLModel, table=True):
     owner: Optional["User"] = Relationship(back_populates="hostels")
     images: List["HostelImage"] = Relationship(back_populates="hostel")
 
-    # ✅ order_by created_at ascending so blockchain history is always
-    # in chronological order when selectinload pulls it in
     blocks: List["HostelBlock"] = Relationship(
         back_populates="hostel",
         sa_relationship_kwargs={"order_by": "HostelBlock.created_at.asc()"},

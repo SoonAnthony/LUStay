@@ -3,16 +3,14 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional, TYPE_CHECKING
 from sqlmodel import SQLModel, Field, Relationship
-from sqlalchemy import Column, DateTime, func
+from sqlalchemy import Column, DateTime, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID
 
-from app.user.models import User
-
 if TYPE_CHECKING:
+    from app.user.models import User
     from app.bookings.models import Booking
 
 
-# ✅ FIX: PaymentStatus must be a proper Enum so values are queryable and comparable
 class PaymentStatus(str, Enum):
     PENDING          = "PENDING"
     SUCCESS          = "SUCCESS"
@@ -30,11 +28,15 @@ class Payment(SQLModel, table=True):
         sa_column=Column(UUID(as_uuid=True), primary_key=True, nullable=False),
     )
 
-    # ✅ FIX: Properly typed as Optional to match nullable=True
+    # SET NULL: keep payment record even if booking is deleted
     booking_id: Optional[uuid.UUID] = Field(
         default=None,
-        foreign_key="bookings.id",
-        nullable=True,
+        sa_column=Column(
+            UUID(as_uuid=True),
+            ForeignKey("bookings.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True
+        )
     )
 
     amount: int = Field(nullable=False)
@@ -44,13 +46,28 @@ class Payment(SQLModel, table=True):
     transaction_ref: Optional[str] = None
     checkout_request_id: Optional[str] = None
 
-    # Refund fields
+    # SET NULL: keep payment record even if the requesting user is deleted
     refund_requested_by: Optional[uuid.UUID] = Field(
-        default=None, foreign_key="users.id"
+        default=None,
+        sa_column=Column(
+            UUID(as_uuid=True),
+            ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True
+        )
     )
+
+    # SET NULL: keep payment record even if the approving admin is deleted
     refund_approved_by: Optional[uuid.UUID] = Field(
-        default=None, foreign_key="users.id"
+        default=None,
+        sa_column=Column(
+            UUID(as_uuid=True),
+            ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+            index=True
+        )
     )
+
     refund_reason: Optional[str] = None
     refunded_at: Optional[datetime] = None
 
@@ -64,9 +81,9 @@ class Payment(SQLModel, table=True):
 
     # Relationships
     booking: Optional["Booking"] = Relationship(back_populates="payments")
-    requested_by: Optional[User] = Relationship(
-        sa_relationship_kwargs={"foreign_keys": "Payment.refund_requested_by"}
+    requested_by: Optional["User"] = Relationship(
+        sa_relationship_kwargs={"foreign_keys": "[Payment.refund_requested_by]"}
     )
-    approved_by: Optional[User] = Relationship(
-        sa_relationship_kwargs={"foreign_keys": "Payment.refund_approved_by"}
+    approved_by: Optional["User"] = Relationship(
+        sa_relationship_kwargs={"foreign_keys": "[Payment.refund_approved_by]"}
     )
