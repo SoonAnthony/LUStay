@@ -6,6 +6,7 @@ import {
   Star, StarOff, Ban, RefreshCw, Search,
   ArrowUpRight, UserCheck, UserX,
   BarChart3, LogOut, Bell, Menu, FileText, Image,
+  RotateCcw,
 } from "lucide-react";
 import api from "../api/axios";
 
@@ -26,10 +27,6 @@ const fmtTime = (d) =>
 const fmt = (n) => `KES ${Number(n || 0).toLocaleString()}`;
 
 // ── PDF / FILE URL HELPERS ────────────────────────────────────
-/**
- * Detects whether a Cloudinary URL points to a PDF.
- * Cloudinary stores PDFs under /raw/upload/ or with a .pdf extension.
- */
 const isPdfUrl = (url) => {
   if (!url) return false;
   return /\.pdf($|\?)/i.test(url) || url.includes("/raw/upload/");
@@ -40,40 +37,15 @@ const isImageUrl = (url) => {
   return /\.(jpg|jpeg|png|webp|gif)($|\?)/i.test(url) || url.includes("/image/upload/");
 };
 
-/**
- * Injects `fl_inline` into a Cloudinary URL so the browser opens the PDF
- * inline instead of downloading it.
- *
- * Cloudinary transformation URLs look like:
- *   https://res.cloudinary.com/<cloud>/raw/upload/<public_id>.pdf
- *   https://res.cloudinary.com/<cloud>/raw/upload/v1234/<public_id>.pdf
- *
- * We insert the `fl_inline` flag right after `/upload/`:
- *   https://res.cloudinary.com/<cloud>/raw/upload/fl_inline/<public_id>.pdf
- *
- * If the URL is NOT a Cloudinary URL, we fall back to Google Docs Viewer
- * which also renders PDFs inline in the browser.
- */
 const getInlinePdfUrl = (url) => {
   if (!url) return url;
-
-  // Already has fl_inline — nothing to do
   if (url.includes("fl_inline")) return url;
-
-  // Cloudinary URL — inject fl_inline after /upload/
   if (url.includes("res.cloudinary.com")) {
     return url.replace(/\/upload\/(?!fl_inline)/, "/upload/fl_inline/");
   }
-
-  // Fallback: Google Docs Viewer renders arbitrary PDFs inline
   return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=true`;
 };
 
-/**
- * Returns the best URL to open a document for viewing (not downloading).
- * - Images: direct URL (browser renders natively)
- * - PDFs:   Cloudinary inline URL or Google Docs Viewer fallback
- */
 const getViewUrl = (url) => {
   if (!url) return url;
   if (isImageUrl(url)) return url;
@@ -142,6 +114,17 @@ const RoomStatusBadge = ({ status }) => {
   const m = { AVAILABLE: "bg-lime-50 text-lime-600", PARTIALLY_OCCUPIED: "bg-amber-50 text-amber-600", FULLY_OCCUPIED: "bg-orange-50 text-orange-600", MAINTENANCE: "bg-red-50 text-red-400" };
   return mkBadge(m[status] || "bg-gray-100 text-gray-500", (status || "").replace(/_/g, " "));
 };
+const PaymentStatusBadge = ({ status }) => {
+  const m = {
+    PENDING:          "bg-gray-100 text-gray-500",
+    SUCCESS:          "bg-lime-50 text-lime-600",
+    FAILED:           "bg-red-50 text-red-400",
+    REFUND_REQUESTED: "bg-amber-50 text-amber-600",
+    REFUNDED:         "bg-blue-50 text-blue-500",
+    REFUND_REJECTED:  "bg-red-100 text-red-600",
+  };
+  return mkBadge(m[status] || "bg-gray-100 text-gray-500", (status || "").replace(/_/g, " "));
+};
 
 // ── SKELETON ──────────────────────────────────────────────────
 const Skel = ({ h = "h-4", w = "w-full", r = "rounded-lg" }) => (
@@ -149,15 +132,6 @@ const Skel = ({ h = "h-4", w = "w-full", r = "rounded-lg" }) => (
 );
 
 // ── DOCUMENT VIEWER MODAL ─────────────────────────────────────
-/**
- * Opens a full-screen modal to preview a document (PDF or image)
- * without ever triggering a download.
- *
- * For PDFs hosted on Cloudinary: uses the fl_inline URL so the
- * browser's native PDF viewer handles rendering inside an <iframe>.
- * For images: displays them directly in an <img> tag.
- * Fallback for unknown types: iframe with Google Docs Viewer.
- */
 function DocumentViewerModal({ doc, onClose }) {
   const { label, url } = doc;
   const isImg = isImageUrl(url);
@@ -165,7 +139,6 @@ function DocumentViewerModal({ doc, onClose }) {
 
   return (
     <div className="fixed inset-0 z-200 bg-black/60 backdrop-blur-sm flex flex-col">
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100 shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
           {isImg
@@ -174,42 +147,23 @@ function DocumentViewerModal({ doc, onClose }) {
           <p className="text-sm font-semibold text-gray-900 truncate">{label}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {/* External link — opens in new tab as backup */}
-          <a
-            href={viewUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-1.5 px-3 py-2 text-xs border border-gray-200 text-gray-500 rounded-xl hover:bg-gray-50 transition"
-          >
+          <a href={viewUrl} target="_blank" rel="noreferrer"
+            className="flex items-center gap-1.5 px-3 py-2 text-xs border border-gray-200 text-gray-500 rounded-xl hover:bg-gray-50 transition">
             <ArrowUpRight size={12} /> Open in tab
           </a>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition"
-          >
+          <button onClick={onClose} className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition">
             <X size={16} />
           </button>
         </div>
       </div>
-
-      {/* Viewer body */}
       <div className="flex-1 overflow-hidden bg-gray-100">
         {isImg ? (
           <div className="w-full h-full flex items-center justify-center p-4">
-            <img
-              src={viewUrl}
-              alt={label}
-              className="max-w-full max-h-full object-contain rounded-xl shadow-lg"
-            />
+            <img src={viewUrl} alt={label} className="max-w-full max-h-full object-contain rounded-xl shadow-lg" />
           </div>
         ) : (
-          <iframe
-            src={viewUrl}
-            title={label}
-            className="w-full h-full border-0"
-            // These attributes help keep the PDF inline and prevent download prompts
-            sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
-          />
+          <iframe src={viewUrl} title={label} className="w-full h-full border-0"
+            sandbox="allow-scripts allow-same-origin allow-popups allow-forms" />
         )}
       </div>
     </div>
@@ -217,21 +171,13 @@ function DocumentViewerModal({ doc, onClose }) {
 }
 
 // ── DOCUMENT LINK BUTTON ──────────────────────────────────────
-/**
- * Renders a pill button that opens the DocumentViewerModal.
- * Never triggers a download — always previews in-browser.
- */
 function DocButton({ label, url, onView }) {
   if (!url) return null;
   const isImg = isImageUrl(url);
   return (
-    <button
-      onClick={() => onView({ label, url })}
-      className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-gray-50 text-blue-500 border border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 transition active:scale-95"
-    >
-      {isImg
-        ? <Image size={10} className="shrink-0" />
-        : <FileText size={10} className="shrink-0" />}
+    <button onClick={() => onView({ label, url })}
+      className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-gray-50 text-blue-500 border border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 transition active:scale-95">
+      {isImg ? <Image size={10} className="shrink-0" /> : <FileText size={10} className="shrink-0" />}
       {label}
     </button>
   );
@@ -426,15 +372,15 @@ function OverviewTab({ showToast, onNavigate }) {
 // USERS TAB
 // ══════════════════════════════════════════════════════════════
 function UsersTab({ showToast }) {
-  const [users,     setUsers]     = useState([]);
-  const [loading,   setLoading]   = useState(true);
-  const [search,    setSearch]    = useState("");
+  const [users,      setUsers]      = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [search,     setSearch]     = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
-  const [confirm,   setConfirm]   = useState(null);
-  const [acting,    setActing]    = useState(null);
-  const [editUser,  setEditUser]  = useState(null);
-  const [editDraft, setEditDraft] = useState({});
-  const [saving,    setSaving]    = useState(false);
+  const [confirm,    setConfirm]    = useState(null);
+  const [acting,     setActing]     = useState(null);
+  const [editUser,   setEditUser]   = useState(null);
+  const [editDraft,  setEditDraft]  = useState({});
+  const [saving,     setSaving]     = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -442,7 +388,6 @@ function UsersTab({ showToast }) {
       const { data } = await api.get("/admin/users");
       setUsers(data.users || []);
     } catch (e) {
-      console.error("[UsersTab]", e?.response?.status, e?.response?.data);
       showToast(getErrorMsg(e, "Failed to load users"), "error");
     } finally { setLoading(false); }
   }, []);
@@ -615,7 +560,6 @@ function LandlordRequestsTab({ showToast }) {
   const [acting,       setActing]       = useState(null);
   const [rejectModal,  setRejectModal]  = useState(null);
   const [rejectReason, setRejectReason] = useState("");
-  // ✅ New: tracks which doc is open in the full-screen viewer
   const [viewingDoc,   setViewingDoc]   = useState(null);
 
   const load = useCallback(async () => {
@@ -624,7 +568,6 @@ function LandlordRequestsTab({ showToast }) {
       const { data } = await api.get("/admin/landlord-requests/");
       setRequests(data);
     } catch (e) {
-      console.error("[LandlordRequests]", e?.response?.status, e?.response?.data);
       showToast(getErrorMsg(e, "Failed to load requests"), "error");
     } finally { setLoading(false); }
   }, []);
@@ -687,14 +630,11 @@ function LandlordRequestsTab({ showToast }) {
         <div className="space-y-3">
           {filtered.map(req => (
             <div key={req.id} className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5">
-              {/* Status + time */}
               <div className="flex items-center gap-2 flex-wrap mb-3">
                 <RequestStatusBadge status={req.status} />
                 <span className="text-xs text-gray-400">Submitted {fmtTime(req.submitted_at)}</span>
                 {req.reviewed_at && <span className="text-xs text-gray-400">· Reviewed {fmtTime(req.reviewed_at)}</span>}
               </div>
-
-              {/* User info */}
               <div className="flex items-center gap-2.5 mb-3">
                 <div className="w-8 h-8 rounded-xl bg-blue-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
                   {req.user?.first_name?.[0] || "?"}
@@ -706,31 +646,20 @@ function LandlordRequestsTab({ showToast }) {
                   <p className="text-xs text-gray-400">{req.user?.email || ""}</p>
                 </div>
               </div>
-
-              {/* Rejection reason */}
               {req.rejection_reason && (
                 <p className="text-xs text-red-500 mb-3 bg-red-50 border border-red-100 rounded-xl px-3 py-2">
                   Rejection reason: {req.rejection_reason}
                 </p>
               )}
-
-              {/* ✅ Document buttons — open in-browser viewer, never download */}
               <div className="flex flex-wrap gap-2 mb-3">
                 {[
                   { label: "Title Deed",           url: req.title_deed_url },
                   { label: "Lease Agreement",      url: req.lease_agreement_url },
                   { label: "Authorization Letter", url: req.authorization_letter_url },
                 ].filter(({ url }) => url).map(({ label, url }) => (
-                  <DocButton
-                    key={label}
-                    label={label}
-                    url={url}
-                    onView={setViewingDoc}
-                  />
+                  <DocButton key={label} label={label} url={url} onView={setViewingDoc} />
                 ))}
               </div>
-
-              {/* Approve / Reject */}
               {req.status === "PENDING" && (
                 <div className="flex gap-2 pt-3 border-t border-gray-50">
                   <button onClick={() => handleApprove(req)} disabled={acting === req.id}
@@ -748,12 +677,8 @@ function LandlordRequestsTab({ showToast }) {
         </div>
       )}
 
-      {/* ✅ Full-screen document viewer */}
-      {viewingDoc && (
-        <DocumentViewerModal doc={viewingDoc} onClose={() => setViewingDoc(null)} />
-      )}
+      {viewingDoc && <DocumentViewerModal doc={viewingDoc} onClose={() => setViewingDoc(null)} />}
 
-      {/* Reject reason bottom sheet */}
       {rejectModal && (
         <div className="fixed inset-0 z-150 bg-black/20 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="bg-white border border-gray-100 rounded-t-3xl sm:rounded-2xl p-6 w-full sm:max-w-sm shadow-xl">
@@ -795,8 +720,8 @@ function HostelsTab({ showToast }) {
       const { data } = await api.get("/admin/hostels/");
       setHostels(data.hostels || []);
     } catch (e) {
-      const status = e?.response?.status, detail = e?.response?.data?.detail, msg = getErrorMsg(e, "Failed to load hostels");
-      setFetchError({ status, msg, detail }); showToast(msg, "error");
+      const status = e?.response?.status, msg = getErrorMsg(e, "Failed to load hostels");
+      setFetchError({ status, msg }); showToast(msg, "error");
     } finally { setLoading(false); }
   }, []);
 
@@ -859,7 +784,6 @@ function HostelsTab({ showToast }) {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-red-700">Failed to load hostels</p>
             <p className="text-xs text-red-500 mt-0.5">{fetchError.msg}</p>
-            {fetchError.status && <p className="text-xs text-red-400 mt-1 font-mono">HTTP {fetchError.status}</p>}
           </div>
           <button onClick={load} className="text-xs text-red-600 hover:underline shrink-0 font-medium">Retry</button>
         </div>
@@ -883,7 +807,6 @@ function HostelsTab({ showToast }) {
                 {hostel.images?.find(i => i.is_primary)
                   ? <img src={hostel.images.find(i => i.is_primary).image_url} alt="" className="w-12 h-12 rounded-xl object-cover shrink-0" />
                   : <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center shrink-0"><Building2 size={18} className="text-gray-400" /></div>}
-
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
@@ -904,7 +827,6 @@ function HostelsTab({ showToast }) {
                       {expanded === hostel.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     </button>
                   </div>
-
                   <div className="grid grid-cols-2 sm:flex gap-2 mt-3">
                     {hostel.status !== "APPROVED" && (
                       <button onClick={() => handleSetStatus(hostel, "APPROVED")} disabled={!!acting}
@@ -936,7 +858,6 @@ function HostelsTab({ showToast }) {
                   </div>
                 </div>
               </div>
-
               {expanded === hostel.id && (
                 <div className="border-t border-gray-100 px-4 sm:px-5 py-4 bg-gray-50/60">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Blockchain history</p>
@@ -992,10 +913,8 @@ function RoomsTab({ showToast }) {
   const load = useCallback(async () => {
     setLoading(true);
     try { const { data } = await api.get("/rooms/"); setRooms(data); }
-    catch (e) {
-      console.error("[RoomsTab]", e?.response?.status, e?.response?.data);
-      showToast(getErrorMsg(e, "Failed to load rooms"), "error");
-    } finally { setLoading(false); }
+    catch (e) { showToast(getErrorMsg(e, "Failed to load rooms"), "error"); }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -1118,24 +1037,51 @@ function RoomsTab({ showToast }) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// BOOKINGS TAB
+// BOOKINGS TAB  (bookings + refund requests in sub-tabs)
 // ══════════════════════════════════════════════════════════════
 function BookingsTab({ showToast }) {
-  const [bookings,     setBookings]     = useState([]);
-  const [loading,      setLoading]      = useState(true);
-  const [search,       setSearch]       = useState("");
+  const [subTab, setSubTab] = useState("bookings");
+
+  return (
+    <div className="space-y-4">
+      {/* Sub-tab switcher */}
+      <div className="flex gap-2">
+        {[
+          { id: "bookings", label: "Bookings" },
+          { id: "refunds",  label: "Refund Requests" },
+        ].map(({ id, label }) => (
+          <button key={id} onClick={() => setSubTab(id)}
+            className={`text-xs px-4 py-1.5 rounded-full border transition-colors
+              ${subTab === id
+                ? "bg-blue-500 text-white border-blue-500"
+                : "bg-white border-gray-200 text-gray-500 hover:bg-gray-50"
+              }`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {subTab === "bookings" && <BookingsList showToast={showToast} />}
+      {subTab === "refunds"  && <RefundsList  showToast={showToast} />}
+    </div>
+  );
+}
+
+// ── BOOKINGS LIST ─────────────────────────────────────────────
+function BookingsList({ showToast }) {
+  const [bookings,   setBookings]   = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [search,     setSearch]     = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [cancelling,   setCancelling]   = useState(null);
-  const [confirm,      setConfirm]      = useState(null);
-  const [expanded,     setExpanded]     = useState(null);
+  const [cancelling, setCancelling] = useState(null);
+  const [confirm,    setConfirm]    = useState(null);
+  const [expanded,   setExpanded]   = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try { const { data } = await api.get("/bookings/"); setBookings(Array.isArray(data) ? data : []); }
-    catch (e) {
-      console.error("[BookingsTab]", e?.response?.status, e?.response?.data);
-      showToast(getErrorMsg(e, "Failed to load bookings"), "error");
-    } finally { setLoading(false); }
+    catch (e) { showToast(getErrorMsg(e, "Failed to load bookings"), "error"); }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -1157,13 +1103,13 @@ function BookingsTab({ showToast }) {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="space-y-2">
         <SearchBar value={search} onChange={setSearch} placeholder="Search by ID, user, semester…" />
         <div className="flex gap-2 items-center">
           <FilterPills value={statusFilter} onChange={setStatusFilter} options={[
             { label: "All", val: "all" }, { label: "Confirmed", val: "CONFIRMED" },
-            { label: "Active", val: "ACTIVE" }, { label: "Pending", val: "PENDING" }, { label: "Cancelled", val: "CANCELLED" },
+            { label: "Active", val: "ACTIVE" }, { label: "Cancelled", val: "CANCELLED" },
           ]} />
           <button onClick={load} className="shrink-0 p-2.5 bg-white border border-gray-200 rounded-xl text-gray-400 hover:text-gray-600 transition">
             <RefreshCw size={14} />
@@ -1183,80 +1129,213 @@ function BookingsTab({ showToast }) {
           <p className="text-sm text-gray-400">No bookings found</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {filtered.map(booking => {
-            const isExpanded = expanded === booking.id;
-            const paidPct = booking.total_price ? Math.min(100, ((booking.amount_paid || 0) / booking.total_price) * 100) : 0;
-            return (
-              <div key={booking.id} className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-                <div className="p-4 sm:p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-semibold text-gray-900 font-mono">#{booking.id?.slice(0, 8).toUpperCase()}</p>
-                        <BookingStatusBadge status={booking.status} />
-                        {booking.is_shared && <span className="text-xs bg-gray-50 border border-gray-200 text-gray-500 px-2 py-0.5 rounded-full">Shared</span>}
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">Semester {booking.semester}</p>
-                      <div className="mt-2 flex items-center gap-2">
-                        <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-blue-400 rounded-full" style={{ width: `${paidPct}%` }} />
-                        </div>
-                        <span className="text-xs text-gray-400 shrink-0">{Math.round(paidPct)}%</span>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        <span className="font-medium text-gray-800">{fmt(booking.amount_paid)}</span>
-                        <span className="text-gray-400"> / {fmt(booking.total_price)}</span>
-                      </p>
+        filtered.map(booking => {
+          const isExpanded = expanded === booking.id;
+          const paidPct = booking.total_price ? Math.min(100, ((booking.amount_paid || 0) / booking.total_price) * 100) : 0;
+          return (
+            <div key={booking.id} className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+              <div className="p-4 sm:p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-semibold text-gray-900 font-mono">#{booking.id?.slice(0, 8).toUpperCase()}</p>
+                      <BookingStatusBadge status={booking.status} />
+                      {booking.is_shared && <span className="text-xs bg-gray-50 border border-gray-200 text-gray-500 px-2 py-0.5 rounded-full">Shared</span>}
                     </div>
-                    <button onClick={() => setExpanded(isExpanded ? null : booking.id)}
-                      className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition shrink-0">
-                      {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-                    </button>
+                    <p className="text-xs text-gray-500 mt-1">Semester {booking.semester}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-blue-400 rounded-full" style={{ width: `${paidPct}%` }} />
+                      </div>
+                      <span className="text-xs text-gray-400 shrink-0">{Math.round(paidPct)}%</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      <span className="font-medium text-gray-800">{fmt(booking.amount_paid)}</span>
+                      <span className="text-gray-400"> / {fmt(booking.total_price)}</span>
+                    </p>
                   </div>
-
-                  {booking.status !== "CANCELLED" && (
-                    <button onClick={() => setConfirm(booking)}
-                      className="mt-3 w-full py-2.5 text-xs font-medium border border-red-200 text-red-500 hover:bg-red-50 rounded-xl transition active:scale-95">
-                      Cancel booking
-                    </button>
-                  )}
+                  <button onClick={() => setExpanded(isExpanded ? null : booking.id)}
+                    className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition shrink-0">
+                    {isExpanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                  </button>
                 </div>
-
-                {isExpanded && (
-                  <div className="border-t border-gray-100 bg-gray-50/60 px-4 sm:px-5 py-4">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Booking details</p>
-                    <div className="space-y-0">
-                      {[
-                        ["Booking ID",  booking.id],
-                        ["User ID",     booking.user_id],
-                        ["Room ID",     booking.room_id],
-                        ["Semester",    booking.semester],
-                        ["Shared",      booking.is_shared ? "Yes" : "No"],
-                        ["Amount paid", fmt(booking.amount_paid)],
-                        ["Deposit",     fmt(booking.deposit_amount)],
-                        ["Total price", fmt(booking.total_price)],
-                        ["Balance due", fmt((booking.total_price || 0) - (booking.amount_paid || 0))],
-                        ["Created",     fmtDate(booking.created_at)],
-                      ].map(([label, value]) => value && (
-                        <div key={label} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
-                          <span className="text-xs text-gray-400">{label}</span>
-                          <span className="text-xs text-gray-700 font-medium font-mono truncate max-w-[55%] text-right">{value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                {booking.status !== "CANCELLED" && (
+                  <button onClick={() => setConfirm(booking)}
+                    className="mt-3 w-full py-2.5 text-xs font-medium border border-red-200 text-red-500 hover:bg-red-50 rounded-xl transition active:scale-95">
+                    Cancel booking
+                  </button>
                 )}
               </div>
-            );
-          })}
-        </div>
+              {isExpanded && (
+                <div className="border-t border-gray-100 bg-gray-50/60 px-4 sm:px-5 py-4">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Booking details</p>
+                  <div className="space-y-0">
+                    {[
+                      ["Booking ID",  booking.id],
+                      ["User ID",     booking.user_id],
+                      ["Room ID",     booking.room_id],
+                      ["Semester",    booking.semester],
+                      ["Shared",      booking.is_shared ? "Yes" : "No"],
+                      ["Amount paid", fmt(booking.amount_paid)],
+                      ["Deposit",     fmt(booking.deposit_amount)],
+                      ["Total price", fmt(booking.total_price)],
+                      ["Balance due", fmt((booking.total_price || 0) - (booking.amount_paid || 0))],
+                      ["Created",     fmtDate(booking.created_at)],
+                    ].map(([label, value]) => value && (
+                      <div key={label} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
+                        <span className="text-xs text-gray-400">{label}</span>
+                        <span className="text-xs text-gray-700 font-medium font-mono truncate max-w-[55%] text-right">{value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })
       )}
 
       {confirm && (
         <ConfirmModal title="Cancel Booking?"
           message={`Cancel booking #${confirm.id?.slice(0, 8).toUpperCase()}? This cannot be undone.`}
           onConfirm={handleCancel} onCancel={() => setConfirm(null)} danger loading={cancelling === confirm.id} />
+      )}
+    </div>
+  );
+}
+
+// ── REFUNDS LIST ──────────────────────────────────────────────
+function RefundsList({ showToast }) {
+  const [payments,  setPayments]  = useState([]);
+  const [loading,   setLoading]   = useState(true);
+  const [acting,    setActing]    = useState(null);
+  const [confirm,   setConfirm]   = useState(null); // { payment, approve }
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      // Fetch all payments and filter for refund-requested ones
+      const { data } = await api.get("/payments/?status=REFUND_REQUESTED");
+      setPayments(Array.isArray(data) ? data : []);
+    } catch (e) {
+      showToast(getErrorMsg(e, "Failed to load refund requests"), "error");
+    } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleProcess = async () => {
+    const { payment, approve } = confirm;
+    setActing(payment.id);
+    try {
+      const { data } = await api.post(`/payments/${payment.id}/process-refund`, { approve });
+      setPayments(p => p.map(pay => pay.id === payment.id ? data : pay));
+      showToast(approve ? "Refund approved and processed" : "Refund rejected");
+      setConfirm(null);
+    } catch (e) {
+      showToast(getErrorMsg(e, "Failed to process refund"), "error");
+    } finally {
+      setActing(null);
+    }
+  };
+
+  // Filter to only show REFUND_REQUESTED ones (in case backend returns more)
+  const pending = payments.filter(p => p.status === "REFUND_REQUESTED");
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-gray-400 uppercase tracking-wide">
+          {pending.length} pending refund{pending.length !== 1 ? "s" : ""}
+        </p>
+        <button onClick={load} className="p-2.5 bg-white border border-gray-200 rounded-xl text-gray-400 hover:text-gray-600 transition">
+          <RefreshCw size={14} />
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">{[1, 2].map(i => (
+          <div key={i} className="bg-white border border-gray-100 rounded-2xl p-5 space-y-2">
+            <Skel h="h-4" w="w-32" /><Skel h="h-3" w="w-48" /><Skel h="h-3" w="w-24" />
+          </div>
+        ))}</div>
+      ) : pending.length === 0 ? (
+        <div className="bg-white border border-gray-100 rounded-2xl py-16 text-center">
+          <p className="text-sm text-gray-400">No pending refund requests</p>
+        </div>
+      ) : (
+        pending.map(payment => (
+          <div key={payment.id} className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+            {/* Header */}
+            <div className="flex items-start justify-between px-5 pt-4 pb-3 border-b border-gray-100">
+              <div>
+                <p className="text-sm font-semibold text-gray-900 font-mono">
+                  #{payment.id?.slice(0, 8).toUpperCase()}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">{fmtDate(payment.created_at)}</p>
+              </div>
+              <PaymentStatusBadge status={payment.status} />
+            </div>
+
+            {/* Details */}
+            <div className="px-5 py-4 space-y-2">
+              {[
+                ["Payment ID",  payment.id],
+                ["Booking ID",  payment.booking_id],
+                ["Amount",      fmt(payment.amount)],
+                ["Phone",       payment.phone_number],
+                ["M-Pesa Ref",  payment.transaction_ref || "—"],
+              ].map(([label, value]) => (
+                <div key={label} className="flex justify-between items-center">
+                  <span className="text-xs text-gray-400">{label}</span>
+                  <span className="text-xs text-gray-700 font-mono truncate max-w-[55%] text-right">{value}</span>
+                </div>
+              ))}
+
+              {/* Refund reason */}
+              {payment.refund_reason && (
+                <div className="mt-2 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+                  <p className="text-xs text-amber-700 font-medium mb-0.5">Refund reason</p>
+                  <p className="text-xs text-amber-600">{payment.refund_reason}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 px-5 pb-4">
+              <button
+                onClick={() => setConfirm({ payment, approve: true })}
+                disabled={acting === payment.id}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold bg-lime-50 hover:bg-lime-100 text-lime-700 border border-lime-200 rounded-xl transition active:scale-95 disabled:opacity-50"
+              >
+                {acting === payment.id ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />}
+                Approve Refund
+              </button>
+              <button
+                onClick={() => setConfirm({ payment, approve: false })}
+                disabled={acting === payment.id}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 rounded-xl transition active:scale-95 disabled:opacity-50"
+              >
+                <X size={12} /> Reject Refund
+              </button>
+            </div>
+          </div>
+        ))
+      )}
+
+      {confirm && (
+        <ConfirmModal
+          title={confirm.approve ? "Approve Refund?" : "Reject Refund?"}
+          message={
+            confirm.approve
+              ? `This will reverse the M-Pesa transaction of ${fmt(confirm.payment.amount)} and cancel the booking. This cannot be undone.`
+              : `The refund request will be rejected. The booking remains active.`
+          }
+          onConfirm={handleProcess}
+          onCancel={() => setConfirm(null)}
+          danger={!confirm.approve}
+          loading={acting === confirm.payment.id}
+        />
       )}
     </div>
   );
