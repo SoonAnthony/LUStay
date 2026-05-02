@@ -27,7 +27,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "script-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
             "style-src 'self' 'unsafe-inline' cdn.jsdelivr.net; "
             "img-src 'self' data: https://res.cloudinary.com fastapi.tiangolo.com; "
-            "connect-src 'self' http://localhost:8000 http://127.0.0.1:8000"
+            "connect-src 'self' http://localhost:8000 http://127.0.0.1:8000 https://lustay.onrender.com https://lustay.vercel.app"
         )
         return response
 
@@ -51,7 +51,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 # ✅ CORS — must allow credentials for cookies to work
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # ✅ explicit origin, not "*"
+    allow_origins=["http://localhost:3000", "https://lustay.vercel.app",],  # ✅ explicit origin, not "*"
     allow_credentials=True,                   # ✅ required for cookies
     allow_methods=["*"],
     allow_headers=["*"],
