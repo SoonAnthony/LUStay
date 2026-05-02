@@ -3,39 +3,39 @@ import { useParams, useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import Footer from "../components/Footer";
 
+
+const RESERVATION_TTL_SECONDS = Number(import.meta.env.VITE_RESERVATION_TTL_SECONDS) || 120;
+
 const PaymentStatus = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [status, setStatus] = useState("loading");
+  const [status, setStatus]           = useState("loading");
   const [reservation, setReservation] = useState(null);
-  const [error, setError] = useState(null);
-  const [timeLeft, setTimeLeft] = useState(null);
+  const [error, setError]             = useState(null);
+  const [timeLeft, setTimeLeft]       = useState(RESERVATION_TTL_SECONDS);
 
-  const pollingRef = useRef(null);
-  const timerRef = useRef(null);
-  // ✅ Guard so we only call the expire endpoint once
+  const pollingRef   = useRef(null);
+  const timerRef     = useRef(null);
+  // Guard so we only call the expire endpoint once
   const hasExpiredRef = useRef(false);
 
   // ── Expire reservation on the backend and update UI ──────────
   const handleExpiry = async () => {
-    // Already handled — don't fire twice
     if (hasExpiredRef.current) return;
     hasExpiredRef.current = true;
 
-    // Stop polling immediately — no point checking status anymore
     clearInterval(pollingRef.current);
     clearInterval(timerRef.current);
 
     try {
       await api.patch(`/bookings/reservations/${id}/expire`);
     } catch (err) {
-      // Even if the network call fails the TTL will expire server-side
-      // on the next request, so we still transition the UI.
+      // Even if the network call fails, TTL will expire server-side on the next
+      // request, so we still transition the UI.
       console.warn("Expire call failed (TTL will clean up server-side):", err);
     }
 
-    // Transition UI to expired state regardless of network outcome
     setTimeLeft(0);
     setStatus("expired");
   };
@@ -45,18 +45,15 @@ const PaymentStatus = () => {
     if (!reservation?.expires_at) return;
 
     const tick = () => {
-      const now = new Date();
+      const now    = new Date();
       const expiry = new Date(reservation.expires_at);
-      const diff = Math.max(0, Math.floor((expiry - now) / 1000));
+      const diff   = Math.max(0, Math.floor((expiry - now) / 1000));
       setTimeLeft(diff);
 
-      // ✅ When the countdown reaches zero, expire immediately
-      if (diff === 0) {
-        handleExpiry();
-      }
+      if (diff === 0) handleExpiry();
     };
 
-    tick(); // run once immediately
+    tick();
     timerRef.current = setInterval(tick, 1000);
     return () => clearInterval(timerRef.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -66,7 +63,7 @@ const PaymentStatus = () => {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const res = await api.get(`/bookings/reservations/${id}`);
+        const res  = await api.get(`/bookings/reservations/${id}`);
         const data = res.data;
 
         setReservation(data);
@@ -90,7 +87,7 @@ const PaymentStatus = () => {
     };
 
     fetchStatus();
-    pollingRef.current = setInterval(fetchStatus, 3000); // poll every 3s, not 1s
+    pollingRef.current = setInterval(fetchStatus, 3000);
     return () => clearInterval(pollingRef.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, navigate]);
@@ -101,6 +98,9 @@ const PaymentStatus = () => {
     const s = (secs % 60).toString().padStart(2, "0");
     return `${m}:${s}`;
   };
+
+  // Warn when under 30 seconds remaining
+  const isUrgent = timeLeft !== null && timeLeft <= 30;
 
   return (
     <>
@@ -131,15 +131,16 @@ const PaymentStatus = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium text-gray-700">Reservation expires in</span>
-                    <span
-                      className={`font-semibold tabular-nums ${
-                        timeLeft !== null && timeLeft <= 10
-                          ? "text-red-500"
-                          : "text-blue-600"
-                      }`}
-                    >
+                    <span className={`font-semibold tabular-nums ${isUrgent ? "text-red-500" : "text-blue-600"}`}>
                       {formatTime(timeLeft)}
                     </span>
+                  </div>
+                  {/* ✅ Progress bar — gives a visual sense of the 2-minute window */}
+                  <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                    <div
+                      className={`h-1.5 rounded-full transition-all duration-1000 ${isUrgent ? "bg-red-400" : "bg-blue-500"}`}
+                      style={{ width: `${(timeLeft / RESERVATION_TTL_SECONDS) * 100}%` }}
+                    />
                   </div>
                 </div>
               )}
