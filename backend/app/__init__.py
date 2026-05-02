@@ -80,3 +80,9 @@ api_v1_router.include_router(bookings_router)
 api_v1_router.include_router(payments_router)
 
 app.include_router(api_v1_router)
+
+# ── HEALTH CHECK ──────────────────────────────────────────────
+@app.get("/health", include_in_schema=False)
+@app.head("/health", include_in_schema=False)
+async def health():
+    return {"status": "ok"}
