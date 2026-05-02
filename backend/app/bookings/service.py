@@ -9,7 +9,7 @@ from app.bookings.models import Reservation, ReservationStatus, Booking, Booking
 from app.bookings.schema import BookingUpdate
 from app.rooms.models import Room, RoomType, RoomStatus
 
-# ✅ FIX: Configurable via env var; 300s (5 min) gives M-Pesa STK push enough time
+# ✅ FIX: Configurable via env var; 120s (2 min) gives M-Pesa STK push enough time
 RESERVATION_TTL_SECONDS = int(os.getenv("RESERVATION_TTL_SECONDS", 120))
 
 
@@ -40,7 +40,7 @@ async def _expire_stale_reservations(session: AsyncSession, room_id: uuid.UUID) 
     )
     for r in result.all():
         r.status = ReservationStatus.EXPIRED
-        session.add(r)  # ✅ FIX: was missing session.add — changes were never persisted
+        session.add(r)  
 
 
 async def _count_active_slots(session: AsyncSession, room_id: uuid.UUID) -> int:
@@ -145,7 +145,7 @@ async def convert_reservation_to_booking_logic(
         total_price = room_type.price_single
 
     # Deposit = 20% of total price, rounded down to nearest integer
-    deposit_amount = (total_price * 20) // 100
+    deposit_amount = 1 #(total_price * 20) // 100
 
     booking = Booking(
         user_id=reservation.user_id,
