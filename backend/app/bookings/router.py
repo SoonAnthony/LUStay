@@ -218,7 +218,7 @@ async def cancel_booking(
 ):
     try:
         booking = await get_booking_logic(session, booking_id)
-        booking = await cancel_booking_logic(booking)
+        booking = await cancel_booking_logic(session, booking) 
         session.add(booking)
         await session.commit()
         await session.refresh(booking)
