@@ -152,8 +152,6 @@ class RoomService:
         for key, value in update_data.items():
             setattr(room, key, value)
 
-        # ✅ If only occupants changed (no explicit status), auto-derive status
-        # but never auto-override a MAINTENANCE status set intentionally.
         if "occupants" in update_data and "status" not in update_data:
             if room.status != RoomStatus.MAINTENANCE:
                 room_type = await self.session.get(RoomType, room.room_type_id)
@@ -167,8 +165,14 @@ class RoomService:
 
         self.session.add(room)
         await self.session.commit()
-        await self.session.refresh(room)
-        return room
+
+        # Re-fetch with eagerly loaded room_type and images to avoid MissingGreenlet on serialization
+        result = await self.session.execute(
+            select(Room)
+            .options(selectinload(Room.room_type).selectinload(RoomType.images))
+            .where(Room.id == room_id)
+        )
+        return result.scalar_one()
 
     async def delete_room(self, room_id: UUID, current_user: User) -> None:
         room = await self.session.get(Room, room_id)
