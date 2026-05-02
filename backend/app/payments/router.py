@@ -2,7 +2,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
-
+from typing import Optional
 from app.db.engine import get_session
 from app.payments.schema import (
     PaymentInitiate,
@@ -17,7 +17,7 @@ from app.payments.service import (
     request_refund_logic,
     process_refund_logic,
 )
-from app.payments.models import Payment
+from app.payments.models import Payment, PaymentStatus
 from app.bookings.models import Reservation, Booking
 from app.rooms.models import Room
 from app.user.dependencies import (
@@ -135,6 +135,24 @@ async def refund_request(
     await session.refresh(payment)
 
     return payment
+
+@payments_router.get("/", response_model=list[PaymentRead])
+async def list_payments(
+    status: Optional[str] = None,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_admin),
+):
+    query = select(Payment)
+
+    if status:
+        try:
+            payment_status = PaymentStatus[status]  # matches "REFUND_REQUESTED" etc.
+            query = query.where(Payment.status == payment_status)
+        except KeyError:
+            raise HTTPException(status_code=400, detail=f"Invalid status: {status}")
+
+    payments = (await session.exec(query)).all()
+    return payments
 
 
 @payments_router.post("/{payment_id}/process-refund", response_model=PaymentRead)
