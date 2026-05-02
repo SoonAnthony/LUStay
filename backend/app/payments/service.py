@@ -134,7 +134,7 @@ async def process_refund_logic(
 
         payment.status = PaymentStatus.REFUNDED
         payment.refund_approved_by = admin_id
-        payment.refunded_at = datetime.now(timezone.utc)
+        payment.refunded_at = datetime.utcnow()
 
         if payment.booking_id:
             booking = await session.get(Booking, payment.booking_id)
