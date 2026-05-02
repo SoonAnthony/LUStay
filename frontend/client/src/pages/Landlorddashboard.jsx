@@ -244,10 +244,8 @@ const RefundRequestModal = ({ booking, onClose, onSuccess }) => {
     setError(null);
     try {
       // Fetch payment linked to this booking
-      const { data: payments } = await api.get(`/payments/?booking_id=${booking.id}`);
-      const payment = Array.isArray(payments)
-        ? payments.find((p) => p.status === "SUCCESS")
-        : payments?.status === "SUCCESS" ? payments : null;
+      const { data: payments } = await api.get(`/payments/by-booking/${booking.id}`);
+      const payment = payments?.status === "SUCCESS" ? payments : null;
 
       if (!payment) throw new Error("No successful payment found for this booking.");
 
