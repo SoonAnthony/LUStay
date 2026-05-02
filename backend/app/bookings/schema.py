@@ -1,12 +1,20 @@
 import uuid
 from datetime import datetime
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
+from app.payments.schema import validate_kenyan_phone
+
 
 class ReservationCreate(BaseModel):
     room_id: uuid.UUID
     semester: str
     is_shared: bool
-    phone_number: str 
+    phone_number: str
+
+    @field_validator("phone_number")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        return validate_kenyan_phone(v)
+
 
 class BookingUpdate(BaseModel):
     room_id: uuid.UUID | None = None
@@ -28,6 +36,7 @@ class BookingRead(BaseModel):
     status: str
     created_at: datetime
     mpesa_checkout_request_id: str | None = None
+
     model_config = ConfigDict(from_attributes=True)
 
 
