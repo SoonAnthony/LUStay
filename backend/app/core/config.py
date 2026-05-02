@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     # Reservation configuration
     # ✅ Added: matches RESERVATION_TTL_SECONDS in .env and bookings/service.py
     RESERVATION_TTL_SECONDS: int = 120
+    # Cookie configuration
+    COOKIE_SECURE: bool = False
+    COOKIE_SAMESITE: str = "lax"
 
     @property
     def DATABASE_URL(self) -> str:
