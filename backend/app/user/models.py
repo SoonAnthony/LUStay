@@ -90,15 +90,24 @@ class User(SQLModel, table=True):
     # Relationships
     landlord_requests: List["LandlordRequest"] = Relationship(
         back_populates="user",
-        sa_relationship_kwargs={"foreign_keys": "[LandlordRequest.user_id]"}
+        sa_relationship_kwargs={
+            "foreign_keys": "[LandlordRequest.user_id]",
+            "passive_deletes": True,
+        }
     )
     reviewed_requests: List["LandlordRequest"] = Relationship(
         back_populates="admin",
-        sa_relationship_kwargs={"foreign_keys": "[LandlordRequest.admin_id]"}
+        sa_relationship_kwargs={
+            "foreign_keys": "[LandlordRequest.admin_id]",
+            "passive_deletes": True,
+        }
     )
     hostels: List["Hostel"] = Relationship(
         back_populates="owner",
-        sa_relationship_kwargs={"lazy": "noload"}
+        sa_relationship_kwargs={
+            "lazy": "noload",
+            "passive_deletes": True,
+        }
     )
 
     def __repr__(self):
@@ -129,7 +138,7 @@ class LandlordRequest(SQLModel, table=True):
         sa_column=Column(UUID(as_uuid=True), primary_key=True, nullable=False)
     )
 
-    # User who made the request
+    # User who made the request — DB handles CASCADE delete
     user_id: uuid.UUID = Field(
         sa_column=Column(
             UUID(as_uuid=True),
@@ -140,7 +149,10 @@ class LandlordRequest(SQLModel, table=True):
     )
     user: Optional[User] = Relationship(
         back_populates="landlord_requests",
-        sa_relationship_kwargs={"foreign_keys": "[LandlordRequest.user_id]"}
+        sa_relationship_kwargs={
+            "foreign_keys": "[LandlordRequest.user_id]",
+            "passive_deletes": True,
+        }
     )
 
     # Document 1: Title Deed
@@ -155,7 +167,7 @@ class LandlordRequest(SQLModel, table=True):
     authorization_letter_url: str = Field(nullable=False)
     authorization_letter_public_id: str = Field(nullable=False)
 
-    # Admin who approved/rejected
+    # Admin who approved/rejected — DB handles SET NULL
     admin_id: Optional[uuid.UUID] = Field(
         sa_column=Column(
             UUID(as_uuid=True),
@@ -166,7 +178,10 @@ class LandlordRequest(SQLModel, table=True):
     )
     admin: Optional[User] = Relationship(
         back_populates="reviewed_requests",
-        sa_relationship_kwargs={"foreign_keys": "[LandlordRequest.admin_id]"}
+        sa_relationship_kwargs={
+            "foreign_keys": "[LandlordRequest.admin_id]",
+            "passive_deletes": True,
+        }
     )
 
     status: RequestStatus = Field(
