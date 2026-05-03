@@ -40,15 +40,12 @@ const Bone = ({ h = "h-4", w = "w-full", r = "rounded-lg" }) => (
 // ── HOME SKELETON ─────────────────────────────────────────────
 const HomeSkeleton = () => (
   <div className="min-h-screen bg-gray-50">
-    {/* hero */}
     <div className="h-105 bg-gray-200 animate-pulse w-full" />
     <div className="max-w-5xl mx-auto px-4 py-10 space-y-10">
-      {/* section heading */}
       <div className="space-y-2">
         <Bone h="h-6" w="w-48" />
         <Bone h="h-4" w="w-72" />
       </div>
-      {/* hostel cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {[1, 2, 3].map((i) => (
           <div key={i} className="bg-white border border-gray-100 rounded-2xl overflow-hidden animate-pulse">
@@ -148,7 +145,6 @@ const LoginSkeleton = () => (
 const DashboardSkeleton = () => (
   <div className="min-h-screen bg-gray-50 pt-24 px-4 pb-16">
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* profile card */}
       <div className="bg-white border border-gray-100 rounded-2xl p-6 animate-pulse">
         <div className="flex items-start gap-5">
           <Bone h="h-14" w="w-14" r="rounded-2xl" />
@@ -160,7 +156,6 @@ const DashboardSkeleton = () => (
           <Bone h="h-8" w="w-24" r="rounded-xl" />
         </div>
       </div>
-      {/* stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="bg-white border border-gray-100 rounded-2xl p-5 space-y-2 animate-pulse">
@@ -169,11 +164,9 @@ const DashboardSkeleton = () => (
           </div>
         ))}
       </div>
-      {/* tab pills */}
       <div className="flex gap-2">
         {[1, 2, 3].map((i) => <Bone key={i} h="h-7" w="w-20" r="rounded-full" />)}
       </div>
-      {/* cards */}
       <div className="flex flex-col gap-4">
         {[1, 2, 3].map((i) => (
           <div key={i} className="bg-white border border-gray-100 rounded-2xl p-5 space-y-3 animate-pulse">
@@ -196,7 +189,6 @@ const DashboardSkeleton = () => (
 // ── ADMIN SKELETON ────────────────────────────────────────────
 const AdminSkeleton = () => (
   <div className="min-h-screen bg-gray-50 flex">
-    {/* sidebar */}
     <aside className="hidden lg:flex fixed inset-y-0 left-0 w-56 bg-white border-r border-gray-100 flex-col p-4 gap-2 animate-pulse">
       <Bone h="h-10" r="rounded-xl" />
       <div className="mt-4 space-y-1.5">
@@ -204,11 +196,9 @@ const AdminSkeleton = () => (
       </div>
     </aside>
     <div className="flex-1 lg:ml-56 flex flex-col">
-      {/* header */}
       <div className="h-16 bg-white border-b border-gray-100 px-6 flex items-center animate-pulse">
         <Bone h="h-5" w="w-32" />
       </div>
-      {/* content */}
       <div className="p-6 space-y-4">
         <div className="grid grid-cols-2 gap-3">
           {[1, 2, 3, 4].map((i) => (
@@ -234,7 +224,7 @@ const AdminSkeleton = () => (
   </div>
 );
 
-// ── GENERIC CONTENT SKELETON (hostel detail, maps, etc.) ──────
+// ── GENERIC CONTENT SKELETON ──────────────────────────────────
 const ContentSkeleton = () => (
   <div className="min-h-screen bg-gray-50 pt-24 px-4 pb-16">
     <div className="max-w-4xl mx-auto space-y-6">
@@ -263,22 +253,23 @@ const ContentSkeleton = () => (
 const SessionSkeleton = () => {
   const { pathname } = useLocation();
 
-  if (pathname === "/")                          return <HomeSkeleton />;
-  if (pathname.startsWith("/hostels"))           return <HostelsSkeleton />;
-  if (pathname === "/bookings")                  return <BookingsSkeleton />;
-  if (pathname === "/login")                     return <LoginSkeleton />;
-  if (pathname === "/register")                  return <LoginSkeleton />;
-  if (pathname === "/profile")                   return <DashboardSkeleton />;
-  if (pathname.startsWith("/landlord"))          return <DashboardSkeleton />;
-  if (pathname.startsWith("/admin"))             return <AdminSkeleton />;
-  if (pathname.startsWith("/payments"))          return <ContentSkeleton />;
-  if (pathname.startsWith("/room"))              return <ContentSkeleton />;
-  if (pathname === "/maps")                      return <ContentSkeleton />;
-  if (pathname === "/about")                     return <ContentSkeleton />;
-  if (pathname.startsWith("/account"))           return <DashboardSkeleton />;
-  if (pathname.startsWith("/become-landlord"))   return <DashboardSkeleton />;
+  if (pathname === "/")                            return <HomeSkeleton />;
+  if (pathname.startsWith("/hostels"))             return <HostelsSkeleton />;
+  if (pathname === "/bookings")                    return <BookingsSkeleton />;
+  if (pathname === "/login")                       return <LoginSkeleton />;
+  if (pathname === "/register")                    return <LoginSkeleton />;
+  if (pathname === "/forgot-password")             return <LoginSkeleton />;  // ✅
+  if (pathname === "/auth/reset-password")         return <LoginSkeleton />;  // ✅
+  if (pathname === "/profile")                     return <DashboardSkeleton />;
+  if (pathname.startsWith("/landlord"))            return <DashboardSkeleton />;
+  if (pathname.startsWith("/admin"))               return <AdminSkeleton />;
+  if (pathname.startsWith("/payments"))            return <ContentSkeleton />;
+  if (pathname.startsWith("/room"))                return <ContentSkeleton />;
+  if (pathname === "/maps")                        return <ContentSkeleton />;
+  if (pathname === "/about")                       return <ContentSkeleton />;
+  if (pathname.startsWith("/account"))             return <DashboardSkeleton />;
+  if (pathname.startsWith("/become-landlord"))     return <DashboardSkeleton />;
 
-  // Default — blank gray screen, no spinner
   return <div className="min-h-screen bg-gray-50" />;
 };
 
@@ -336,6 +327,8 @@ const AppContent = () => {
         <Route path="/bookings"       element={<Bookings />} />
         <Route path="/about"          element={<About />} />
         <Route path="/auth/confirm"   element={<ConfirmPage />} />
+
+        {/* FORGOT / RESET PASSWORD — no auth needed */}
         <Route path="/forgot-password"     element={<ForgotPassword />} />
         <Route path="/auth/reset-password" element={<ResetPassword />} />
 
