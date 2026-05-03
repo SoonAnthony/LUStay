@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import api from "../api/axios";
 import HostelCard, { HostelCardSkeleton } from "../components/HostelCard";
 import Footer from "../components/Footer";
@@ -12,7 +13,6 @@ const Hostels = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // On mount, read ?search= from URL and pre-fill the search box
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const q = params.get("search") || "";
@@ -32,7 +32,6 @@ const Hostels = () => {
       });
   }, []);
 
-  // Keep URL in sync as user types in the search box on this page
   const handleSearchChange = (e) => {
     const val = e.target.value;
     setSearch(val);
@@ -50,8 +49,29 @@ const Hostels = () => {
     h.location.toLowerCase().includes(search.toLowerCase())
   );
 
+  const metaTitle = search
+    ? `Hostels near "${search}" — LUStay`
+    : "All Verified Student Hostels in Kenya — LUStay";
+
+  const metaDescription = search
+    ? `Browse verified student hostels near ${search}. Safe, affordable accommodation in Kenya.`
+    : "Browse all verified student hostels across Kenya. Find safe, affordable accommodation near your university.";
+
+  const canonicalUrl = search
+    ? `https://lustay.vercel.app/hostels?search=${encodeURIComponent(search)}`
+    : "https://lustay.vercel.app/hostels";
+
   return (
     <>
+      <Helmet>
+        <title>{metaTitle}</title>
+        <meta name="description" content={metaDescription} />
+        <link rel="canonical" href={canonicalUrl} />
+        <meta property="og:url" content={canonicalUrl} />
+        <meta property="og:title" content={metaTitle} />
+        <meta property="og:description" content={metaDescription} />
+      </Helmet>
+
       <section className="pt-28 bg-gray-50 min-h-screen pb-16">
         <div className="max-w-7xl mx-auto px-4">
 

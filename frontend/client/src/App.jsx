@@ -1,3 +1,4 @@
+import { Helmet } from "react-helmet-async";
 import { Analytics } from "@vercel/analytics/react";
 import { useEffect } from "react";
 import {
@@ -315,6 +316,30 @@ const AppContent = () => {
 
   return (
     <>
+      <Helmet>
+        <html lang="en" />
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>LUStay — Find Student Hostels in Kenya</title>
+        <meta name="description" content="Book verified, affordable student hostels near your university in Kenya. Safe accommodation made simple." />
+        <meta name="theme-color" content="#3b82f6" />
+        <link rel="canonical" href="https://lustay.vercel.app/" />
+
+        {/* Open Graph */}
+        <meta property="og:site_name" content="LUStay" />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://lustay.vercel.app/" />
+        <meta property="og:title" content="LUStay — Find Student Hostels in Kenya" />
+        <meta property="og:description" content="Book verified, affordable student hostels near your university in Kenya." />
+        <meta property="og:image" content="https://lustay.vercel.app/og-image.jpg" />
+
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="LUStay — Find Student Hostels in Kenya" />
+        <meta name="twitter:description" content="Book verified, affordable student hostels near your university in Kenya." />
+        <meta name="twitter:image" content="https://lustay.vercel.app/og-image.jpg" />
+      </Helmet>
+
       <Navbar />
 
       <Routes>

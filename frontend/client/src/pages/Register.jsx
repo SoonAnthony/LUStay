@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import api from "../api/axios";
 import Footer from "../components/Footer";
 
@@ -104,10 +105,8 @@ const Register = () => {
 
       if (data?.detail) {
         if (typeof data.detail === "string") {
-          // Simple string e.g. "Email already registered"
           message = data.detail;
         } else if (Array.isArray(data.detail)) {
-          // FastAPI validation error — array of { msg, loc, ... } objects
           message = data.detail.map((e) => e.msg).join(", ");
         }
       }
@@ -119,6 +118,13 @@ const Register = () => {
 
   return (
     <>
+      <Helmet>
+        <title>Create Account — LUStay</title>
+        <meta name="description" content="Register for a free LUStay account to browse and book verified student hostels near your university in Kenya." />
+        <link rel="canonical" href="https://lustay.vercel.app/register" />
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
+
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 pt-16 pb-16">
         <div className="w-full max-w-sm">
 

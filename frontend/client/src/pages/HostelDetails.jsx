@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import api from "../api/axios";
 import Footer from "../components/Footer";
 
@@ -41,6 +42,9 @@ const HostelDetails = () => {
   if (loading) {
     return (
       <>
+        <Helmet>
+          <title>Loading Hostel — LUStay</title>
+        </Helmet>
         <div className="pt-28 bg-gray-50 min-h-screen pb-16">
           <div className="max-w-4xl mx-auto px-4">
             <SkeletonBlock h="h-4" w="w-16" rounded="rounded" />
@@ -77,7 +81,12 @@ const HostelDetails = () => {
 
   if (!hostel) {
     return (
-      <div className="pt-28 text-center text-red-500">Hostel not found</div>
+      <>
+        <Helmet>
+          <title>Hostel Not Found — LUStay</title>
+        </Helmet>
+        <div className="pt-28 text-center text-red-500">Hostel not found</div>
+      </>
     );
   }
 
@@ -103,8 +112,35 @@ const HostelDetails = () => {
 
   const roomTypes = Object.values(roomTypesMap);
 
+  // Build meta values from real hostel data
+  const metaTitle = `${hostel.name} — Student Hostel in ${hostel.location} | LUStay`;
+  const metaDescription = hostel.description
+    ? `${hostel.description.slice(0, 140)}...`
+    : `Book a room at ${hostel.name} in ${hostel.location}. Verified student hostel with ${roomTypes.length} room type${roomTypes.length !== 1 ? "s" : ""} available on LUStay.`;
+  const metaImage = hostel.images?.[0]?.image_url || "https://lustay.vercel.app/og-image.jpg";
+  const canonicalUrl = `https://lustay.vercel.app/hostels/${id}`;
+
   return (
     <>
+      <Helmet>
+        <title>{metaTitle}</title>
+        <meta name="description" content={metaDescription} />
+        <link rel="canonical" href={canonicalUrl} />
+
+        {/* Open Graph */}
+        <meta property="og:url" content={canonicalUrl} />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content={metaTitle} />
+        <meta property="og:description" content={metaDescription} />
+        <meta property="og:image" content={metaImage} />
+
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={metaTitle} />
+        <meta name="twitter:description" content={metaDescription} />
+        <meta name="twitter:image" content={metaImage} />
+      </Helmet>
+
       <div className="pt-28 bg-gray-50 min-h-screen pb-16">
         <div className="max-w-4xl mx-auto px-4">
 

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
+import { Helmet } from "react-helmet-async";
 import { loginUser } from "../features/auth/authSlice";
 import Footer from "../components/Footer";
 
@@ -8,7 +9,7 @@ import Footer from "../components/Footer";
 const ROLE_HOME = {
   ADMIN:    "/admin/dashboard",
   LANDLORD: "/landlord/dashboard",
-  STUDENT:  "/profile",           // students go to their profile
+  STUDENT:  "/profile",
 };
 
 const getHomeForRole = (role) => ROLE_HOME[role?.toUpperCase()] ?? "/";
@@ -29,7 +30,6 @@ const Login = () => {
   const [flashMessage,  setFlashMessage]  = useState(null);
   const [flashType,     setFlashType]     = useState("success");
 
-  // Where to go after login — respect redirect-from, else role home
   const from = location.state?.from?.pathname;
 
   const handleSubmit = async (e) => {
@@ -46,8 +46,6 @@ const Login = () => {
         setFlashMessage("Login Successful 🎉");
 
         setTimeout(() => {
-          // If there's a valid "from" path, honour it.
-          // Otherwise send the user to their role-specific dashboard.
           if (from && from !== "/" && from !== "/login") {
             navigate(from, { replace: true });
           } else {
@@ -73,6 +71,13 @@ const Login = () => {
 
   return (
     <>
+      <Helmet>
+        <title>Login — LUStay</title>
+        <meta name="description" content="Login to your LUStay account to manage bookings and find student hostels near your university in Kenya." />
+        <link rel="canonical" href="https://lustay.vercel.app/login" />
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
+
       {/* ── FLASH MESSAGE ──────────────────────────────── */}
       {flashMessage && (
         <div
@@ -109,7 +114,7 @@ const Login = () => {
               <p className="text-sm text-gray-400 mt-1">Login to your LUStay account</p>
             </div>
 
-            {/* REDUX ERROR (shown only when not mid-submit) */}
+            {/* REDUX ERROR */}
             {error && !submitting && !flashMessage && (
               <div className="bg-red-50 border border-red-100 text-red-500 text-sm px-3 py-2 rounded-xl mb-5">
                 {error}
@@ -165,6 +170,7 @@ const Login = () => {
                 {submitting ? "Logging in..." : "Login"}
               </button>
             </form>
+
             <p className="text-right -mt-1">
               <button
                 type="button"
@@ -174,6 +180,7 @@ const Login = () => {
                 Forgot password?
               </button>
             </p>
+
             <p className="text-center text-sm text-gray-400 mt-5">
               Don't have an account?{" "}
               <button onClick={() => navigate("/register")} className="text-blue-500 font-medium">
