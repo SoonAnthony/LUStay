@@ -35,8 +35,14 @@ export const restoreSession = createAsyncThunk(
 // 🚪 LOGOUT
 export const logoutUser = createAsyncThunk(
   "auth/logoutUser",
-  async () => {
-    await api.post("/users/logout");
+  async (_, { dispatch }) => {
+    try {
+      await api.post("/users/logout");
+    } catch {
+      // even if the API call fails, clear local state
+    } finally {
+      dispatch(authSlice.actions.logout());
+    }
   }
 );
 
