@@ -1,4 +1,11 @@
 {
+  "redirects": [
+    {
+      "source": "/sitemap.xml",
+      "destination": "https://lustay.onrender.com/sitemap.xml",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ]
