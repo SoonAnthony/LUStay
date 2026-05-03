@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import Footer from "../components/Footer";
@@ -22,6 +22,7 @@ const PasswordRule = ({ met, label }) => (
 
 const Register = () => {
   const navigate = useNavigate();
+  const timerRef = useRef(null);
 
   const [form, setForm] = useState({
     first_name: "",
@@ -38,35 +39,43 @@ const Register = () => {
   const [flashType, setFlashType] = useState("success");
   const [passwordFocused, setPasswordFocused] = useState(false);
 
+  useEffect(() => {
+    return () => clearTimeout(timerRef.current);
+  }, []);
+
   const rules = {
-    minLength:   form.password.length >= 8,
-    hasUpper:    /[A-Z]/.test(form.password),
-    hasLower:    /[a-z]/.test(form.password),
-    hasNumber:   /[0-9]/.test(form.password),
-    hasSpecial:  /[^A-Za-z0-9]/.test(form.password),
+    minLength:  form.password.length >= 8,
+    hasUpper:   /[A-Z]/.test(form.password),
+    hasLower:   /[a-z]/.test(form.password),
+    hasNumber:  /[0-9]/.test(form.password),
+    hasSpecial: /[^A-Za-z0-9]/.test(form.password),
   };
 
   const passwordValid = Object.values(rules).every(Boolean);
   const passwordsMatch = form.password === form.confirmPassword && form.confirmPassword !== "";
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  const handleChange = useCallback((e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  }, []);
+
+  const showFlash = useCallback((type, message, duration = 4000) => {
+    setFlashType(type);
+    setFlashMessage(message);
+    clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setFlashMessage(null), duration);
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (!passwordValid) {
-      setFlashType("error");
-      setFlashMessage("Password does not meet all requirements.");
-      setTimeout(() => setFlashMessage(null), 3000);
+      showFlash("error", "Password does not meet all requirements.");
       return;
     }
 
     if (form.password !== form.confirmPassword) {
-      setFlashType("error");
-      setFlashMessage("Passwords do not match.");
-      setTimeout(() => setFlashMessage(null), 3000);
+      showFlash("error", "Passwords do not match.");
       return;
     }
 
@@ -74,25 +83,36 @@ const Register = () => {
 
     try {
       await api.post("/users/register", {
-        first_name: form.first_name,
-        last_name: form.last_name,
-        email: form.email,
+        first_name:   form.first_name,
+        last_name:    form.last_name,
+        email:        form.email,
         phone_number: form.phone_number,
-        password: form.password,
+        password:     form.password,
       });
 
-      setFlashType("success");
-      setFlashMessage("Account created! Check your email to verify. 🎉");
+      showFlash("success", "Account created! Check your email to verify. 🎉", 3000);
 
-      setTimeout(() => {
+      timerRef.current = setTimeout(() => {
         navigate("/login");
       }, 3000);
 
     } catch (err) {
-      setFlashType("error");
-      const detail = err.response?.data?.detail;
-      setFlashMessage(detail || "Registration failed. Please try again.");
-      setTimeout(() => setFlashMessage(null), 3000);
+      console.error("Registration error:", err.response?.data);
+
+      const data = err.response?.data;
+      let message = "Registration failed. Please try again.";
+
+      if (data?.detail) {
+        if (typeof data.detail === "string") {
+          // Simple string e.g. "Email already registered"
+          message = data.detail;
+        } else if (Array.isArray(data.detail)) {
+          // FastAPI validation error — array of { msg, loc, ... } objects
+          message = data.detail.map((e) => e.msg).join(", ");
+        }
+      }
+
+      showFlash("error", message);
       setSubmitting(false);
     }
   };
@@ -222,7 +242,7 @@ const Register = () => {
                   </label>
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
+                    onClick={() => setShowPassword((v) => !v)}
                     className="text-xs text-blue-500"
                   >
                     {showPassword ? "Hide" : "Show"}
@@ -240,7 +260,7 @@ const Register = () => {
                   required
                 />
 
-                {/* PASSWORD REQUIREMENTS — shown once user starts typing or focuses */}
+                {/* PASSWORD REQUIREMENTS */}
                 {(passwordFocused || form.password.length > 0) && (
                   <ul className="mt-2 space-y-1 pl-0.5">
                     <PasswordRule met={rules.minLength}  label="At least 8 characters" />
@@ -267,7 +287,6 @@ const Register = () => {
                   className="w-full mt-1 px-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-400 outline-none disabled:opacity-50"
                   required
                 />
-                {/* MATCH INDICATOR */}
                 {form.confirmPassword.length > 0 && (
                   <p className={`text-xs mt-1 flex items-center gap-1.5 transition-colors duration-200 ${passwordsMatch ? "text-green-500" : "text-red-400"}`}>
                     <span className={`flex items-center justify-center w-4 h-4 rounded-full shrink-0 ${passwordsMatch ? "bg-green-100" : "bg-red-100"}`}>
