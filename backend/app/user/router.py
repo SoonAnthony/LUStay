@@ -26,14 +26,15 @@ from app.user.schema import (
     ResetPasswordSchema,
 )
 from app.core.security import hash_password
-from .models import User
+from .models import User, LandlordRequest
+
 from .dependencies import get_current_active_user, get_current_admin
 from app.user.utils import create_access_token, create_refresh_token, decode_refresh_token
 from app.core.tokens import decode_token, TokenType
 from app.core.mail_services import MailService
 from sqlalchemy.exc import IntegrityError
 from app.core.config import settings
-
+from sqlalchemy.orm import selectinload
 
 # ── COOKIE SETTINGS ───────────────────────────────────────────
 COOKIE_MAX_AGE_ACCESS  = 15 * 60            # 15 minutes
@@ -97,6 +98,7 @@ async def update_self(
         await session.refresh(user)
         return user
     except IntegrityError as e:
+        await session.rollback()    
         err_msg = str(e.orig)
         if "users_email_key" in err_msg or "ix_users_email" in err_msg:
             raise HTTPException(status_code=400, detail="Email already registered")
@@ -271,22 +273,30 @@ async def confirm_action(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    user_id     = payload["user_id"]
-    action_type = payload["type"]  # this is a plain string from the JWT
+    user_id     = payload["sub"]        
+    action_type = payload["type"]
 
-    user = await session.get(User, user_id)
+    try:
+        user_uuid = uuid_lib.UUID(user_id)
+    except (KeyError, ValueError):
+        raise HTTPException(status_code=400, detail="Invalid token payload")
+
+    user = await session.get(User, user_uuid)  
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    # ✅ Compare against .value — JWT stores strings, not enum objects
     if action_type == TokenType.EMAIL_VERIFY.value:
         if user.is_verified:
             raise HTTPException(status_code=400, detail="Email already verified")
         user.is_verified = True
 
     elif action_type == TokenType.PASSWORD_RESET.value:
+        user.password_hash    = hash_password(payload.get("new_password", ""))
+        user.pending_password = None
+
+    elif action_type == TokenType.PASSWORD_CHANGE.value:  
         if not user.pending_password:
-            raise HTTPException(status_code=400, detail="No pending password reset")
+            raise HTTPException(status_code=400, detail="No pending password change")
         user.password_hash    = user.pending_password
         user.pending_password = None
 
@@ -310,10 +320,7 @@ async def confirm_action(
     await session.commit()
     await session.refresh(user)
 
-    return {
-        "message": f"{action_type} confirmed successfully",
-        "type": action_type,
-    }
+    return {"message": f"{action_type} confirmed successfully", "type": action_type}
 
 
 # ── FORGOT / RESET PASSWORD (unauthenticated) ─────────────────
@@ -341,7 +348,7 @@ async def reset_password(
         raise HTTPException(status_code=400, detail="Invalid token type")
 
     try:
-        user_uuid = uuid_lib.UUID(token_data["user_id"])
+        user_uuid = uuid_lib.UUID(token_data["sub"])   
     except (KeyError, ValueError):
         raise HTTPException(status_code=400, detail="Invalid token payload")
 
@@ -355,7 +362,6 @@ async def reset_password(
     await session.commit()
 
     return {"message": "Password reset successfully. You can now log in."}
-
 
 # ── ADMIN ROUTES ──────────────────────────────────────────────
 
@@ -464,9 +470,13 @@ async def get_my_requests(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_active_user)
 ):
-    all_requests  = await landlord_service.get_all_requests(session)
-    user_requests = [r for r in all_requests if r.user_id == current_user.id]
-    return [LandlordRequestRead.model_validate(r) for r in user_requests]
+    result = await session.execute(
+        select(LandlordRequest)
+        .options(selectinload(LandlordRequest.user))
+        .where(LandlordRequest.user_id == current_user.id)
+    )
+    requests = result.scalars().all()
+    return [LandlordRequestRead.model_validate(r) for r in requests]
 
 
 @landlord_router.get("/{request_id}", response_model=LandlordRequestRead)

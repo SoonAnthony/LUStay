@@ -71,6 +71,7 @@ class User(SQLModel, table=True):
         sa_column=Column(
             DateTime(timezone=True),
             server_default=func.now(),
+            onupdate=func.now(),
             nullable=False
         )
     )
@@ -85,7 +86,7 @@ class User(SQLModel, table=True):
     pending_phone: Optional[str] = Field(default=None, max_length=13)
 
     # Temporary fields for password verification
-    pending_password: Optional[str] = Field(default=None, max_length=128)
+    pending_password: Optional[str] = Field(default=None)
 
     # Relationships
     landlord_requests: List["LandlordRequest"] = Relationship(
@@ -129,7 +130,7 @@ class LandlordRequest(SQLModel, table=True):
             "uq_pending_request_per_user",
             "user_id",
             unique=True,
-            postgresql_where=text("status = 'PENDING'::requeststatus")
+            postgresql_where=text("status = 'PENDING'")
         ),
     )
 

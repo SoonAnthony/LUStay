@@ -271,7 +271,7 @@ class UserService:
 
             token = create_token(
                 user_id=str(user.id),
-                type=TokenType.PASSWORD_RESET,
+                type=TokenType.PASSWORD_CHANGE, 
                 expires_minutes=30
             )
             link = f"{settings.FRONTEND_URL}/auth/confirm?token={token}"
