@@ -239,9 +239,7 @@ const Profile = () => {
 
   const isImageBusy = uploadingImage || deletingImage;
 
-  // ── CHANGE 1: moved console.log out of JSX ──
-  console.log("BANNER DEBUG:", { profile, role, isLandlord, isAdmin, latestRequest, requestsLoading });
-
+  
   return (
     <>
       <div className="min-h-screen bg-gray-50 pt-24 px-4 pb-16">
@@ -492,19 +490,19 @@ const Profile = () => {
                 {
                   title:  "Change password",
                   desc:   "You'll receive a confirmation link via email",
-                  action: () => navigate("/change-password"),
+                  action: () => navigate("/account/change-password"),
                   label:  "Change",
                 },
                 {
                   title:  "Change email",
                   desc:   "A verification link will be sent to your new email",
-                  action: () => navigate("/change-email"),
+                  action: () => navigate("/account/change-email"),
                   label:  "Change",
                 },
                 {
                   title:  "Change phone number",
                   desc:   "Update your M-Pesa registered phone number",
-                  action: () => navigate("/change-phone"),
+                  action: () => navigate("/account/change-phone"),
                   label:  "Change",
                 },
               ].map(({ title, desc, action, label }) => (
