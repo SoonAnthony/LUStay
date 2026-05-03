@@ -7,4 +7,4 @@ export const requestPhoneChange = (data) =>
   api.post("/users/me/request-phone-change", data);
 
 export const requestPasswordChange = (data) =>
-  api.post("/users/me/change-password", data);
+  api.post("/users/me/request-password-change", data);
