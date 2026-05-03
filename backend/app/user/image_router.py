@@ -1,3 +1,5 @@
+import asyncio
+import io
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 import cloudinary.uploader
@@ -9,32 +11,35 @@ from app.user.schema import UserSchema, UserSelfSchema
 
 profile_image_router = APIRouter(prefix="/users", tags=["User Profile"])
 
+
 @profile_image_router.post("/me/profile-image", response_model=UserSelfSchema)
 async def upload_profile_image(
     file: UploadFile = File(...),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_active_user)
 ):
-    # Validate file type
     if file.content_type not in ["image/jpeg", "image/png", "image/webp"]:
         raise HTTPException(status_code=400, detail="Only JPEG, PNG, or WebP images are allowed")
 
-    # Delete old image from Cloudinary if exists
+    # ✅ Read bytes async FIRST before touching any sync code
+    file_bytes = await file.read()
+
     if current_user.profile_image:
         try:
-            # Extract public_id from URL
             public_id = f"users/{current_user.id}/profile"
-            cloudinary.uploader.destroy(public_id)
+            # ✅ Run sync Cloudinary call off the event loop
+            await asyncio.to_thread(cloudinary.uploader.destroy, public_id)
         except Exception:
-            pass  # Don't fail if old image deletion fails
+            pass
 
-    # Upload new image to Cloudinary
     try:
-        result = cloudinary.uploader.upload(
-            file.file,
+        # ✅ Run sync Cloudinary call off the event loop
+        result = await asyncio.to_thread(
+            cloudinary.uploader.upload,
+            io.BytesIO(file_bytes),          # ✅ wrap bytes in a seekable stream
             folder=f"users/{current_user.id}",
             public_id="profile",
-            overwrite=True,                  # ✅ replaces old one automatically
+            overwrite=True,
             transformation=[
                 {"width": 400, "height": 400, "crop": "fill", "gravity": "face"}
             ]
@@ -42,7 +47,6 @@ async def upload_profile_image(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Image upload failed: {str(e)}")
 
-    # Save URL to user
     current_user.profile_image = result["secure_url"]
     session.add(current_user)
     await session.commit()
@@ -61,7 +65,8 @@ async def delete_profile_image(
 
     try:
         public_id = f"users/{current_user.id}/profile"
-        cloudinary.uploader.destroy(public_id)
+        # ✅ Run sync Cloudinary call off the event loop
+        await asyncio.to_thread(cloudinary.uploader.destroy, public_id)
     except Exception:
         pass
 
