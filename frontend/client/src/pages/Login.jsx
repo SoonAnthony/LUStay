@@ -165,7 +165,15 @@ const Login = () => {
                 {submitting ? "Logging in..." : "Login"}
               </button>
             </form>
-
+            <p className="text-right -mt-1">
+              <button
+                type="button"
+                onClick={() => navigate("/forgot-password")}
+                className="text-xs text-blue-500 hover:underline"
+              >
+                Forgot password?
+              </button>
+            </p>
             <p className="text-center text-sm text-gray-400 mt-5">
               Don't have an account?{" "}
               <button onClick={() => navigate("/register")} className="text-blue-500 font-medium">

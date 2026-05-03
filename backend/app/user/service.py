@@ -323,6 +323,37 @@ class UserService:
 
         return user
 
+    #----forgot/reset password logic------
+    async def forgot_password(self, session: AsyncSession, email: str) -> None:
+        result = await session.exec(select(User).where(User.email == email))
+        user = result.one_or_none()
+
+        if not user:
+            return  # silently return — never reveal if email exists
+
+        token = create_token(
+            user_id=str(user.id),
+            type=TokenType.PASSWORD_RESET,
+            expires_minutes=30
+        )
+        link = f"{settings.FRONTEND_URL}/auth/confirm?token={token}"  # ✅ same confirm endpoint
+
+        mailer = MailService(
+            settings.BREVO_API_KEY,
+            settings.BREVO_SENDER_EMAIL,
+            settings.BREVO_SENDER_NAME
+        )
+        await mailer.send_email(
+            to_email=user.email,
+            subject="Reset your LUStay password",
+            html_content=f"""
+                <p>Hello {user.first_name},</p>
+                <p>Click below to reset your password. This link expires in 30 minutes.</p>
+                <p><a href="{link}">Reset Password</a></p>
+                <p>If you didn't request this, ignore this email.</p>
+            """
+        )
+
     # ── HELPERS ──────────────────────────────────────────────
     def _generate_otp(self, length: int = 6) -> str:
         import random

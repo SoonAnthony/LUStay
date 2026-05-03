@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Body, Response, R
 from sqlmodel.ext.asyncio.session import AsyncSession
 from typing import List
 from uuid import UUID
+import uuid as uuid_lib
 from sqlmodel import select
 from app.db.engine import get_session
 from app.user.service import UserService, LandlordRequestService
@@ -21,6 +22,8 @@ from app.user.schema import (
     LandlordRequestCreate,
     LandlordRequestRead,
     LandlordRequestUpdate,
+    ForgotPasswordSchema,
+    ResetPasswordSchema,
 )
 from app.core.security import hash_password
 from .models import User
@@ -258,7 +261,7 @@ async def logout(response: Response):
 
 # ── CONFIRM ACTION ────────────────────────────────────────────
 
-@user_router.get("/confirm")  # ✅ was /auth/confirm — fixed to match frontend call
+@user_router.get("/confirm")
 async def confirm_action(
     token: str,
     session: AsyncSession = Depends(get_session)
@@ -269,31 +272,32 @@ async def confirm_action(
         raise HTTPException(status_code=400, detail=str(e))
 
     user_id     = payload["user_id"]
-    action_type = payload["type"]
+    action_type = payload["type"]  # this is a plain string from the JWT
 
     user = await session.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    if action_type == TokenType.EMAIL_VERIFY:
+    # ✅ Compare against .value — JWT stores strings, not enum objects
+    if action_type == TokenType.EMAIL_VERIFY.value:
         if user.is_verified:
             raise HTTPException(status_code=400, detail="Email already verified")
         user.is_verified = True
 
-    elif action_type == TokenType.PASSWORD_RESET:
+    elif action_type == TokenType.PASSWORD_RESET.value:
         if not user.pending_password:
             raise HTTPException(status_code=400, detail="No pending password reset")
         user.password_hash    = user.pending_password
         user.pending_password = None
 
-    elif action_type == TokenType.EMAIL_CHANGE:
+    elif action_type == TokenType.EMAIL_CHANGE.value:
         if not user.pending_email and not payload.get("new_email"):
             raise HTTPException(status_code=400, detail="No pending email change")
         user.email         = user.pending_email or payload.get("new_email")
         user.pending_email = None
         user.is_verified   = True
 
-    elif action_type == TokenType.PHONE_CHANGE:
+    elif action_type == TokenType.PHONE_CHANGE.value:
         if not user.pending_phone and not payload.get("new_phone"):
             raise HTTPException(status_code=400, detail="No pending phone change")
         user.phone_number  = user.pending_phone or payload.get("new_phone")
@@ -308,8 +312,49 @@ async def confirm_action(
 
     return {
         "message": f"{action_type} confirmed successfully",
-        "type": action_type,  # ✅ frontend uses this to show the right success message
+        "type": action_type,
     }
+
+
+# ── FORGOT / RESET PASSWORD (unauthenticated) ─────────────────
+
+@user_router.post("/forgot-password")
+async def forgot_password(
+    payload: ForgotPasswordSchema,
+    session: AsyncSession = Depends(get_session)
+):
+    await user_service.forgot_password(session, payload.email)
+    return {"message": "If that email exists, a reset link has been sent."}
+
+
+@user_router.post("/reset-password")
+async def reset_password(
+    payload: ResetPasswordSchema,
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        token_data = decode_token(payload.token)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    if token_data.get("type") != TokenType.PASSWORD_RESET.value:
+        raise HTTPException(status_code=400, detail="Invalid token type")
+
+    try:
+        user_uuid = uuid_lib.UUID(token_data["user_id"])
+    except (KeyError, ValueError):
+        raise HTTPException(status_code=400, detail="Invalid token payload")
+
+    user = await session.get(User, user_uuid)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.password_hash    = hash_password(payload.new_password)
+    user.pending_password = None
+    session.add(user)
+    await session.commit()
+
+    return {"message": "Password reset successfully. You can now log in."}
 
 
 # ── ADMIN ROUTES ──────────────────────────────────────────────

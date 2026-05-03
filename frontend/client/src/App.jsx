@@ -29,6 +29,8 @@ import ChangeEmail from "./pages/ChangeEmail";
 import ChangePassword from "./pages/ChangePassword";
 import ChangePhone from "./pages/ChangePhone";
 import AdminDashboard from "./pages/Admindashboard";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword  from "./pages/ResetPassword";
 
 // ── SKELETON PRIMITIVES ───────────────────────────────────────
 const Bone = ({ h = "h-4", w = "w-full", r = "rounded-lg" }) => (
@@ -39,7 +41,7 @@ const Bone = ({ h = "h-4", w = "w-full", r = "rounded-lg" }) => (
 const HomeSkeleton = () => (
   <div className="min-h-screen bg-gray-50">
     {/* hero */}
-    <div className="h-[420px] bg-gray-200 animate-pulse w-full" />
+    <div className="h-105 bg-gray-200 animate-pulse w-full" />
     <div className="max-w-5xl mx-auto px-4 py-10 space-y-10">
       {/* section heading */}
       <div className="space-y-2">
@@ -334,6 +336,8 @@ const AppContent = () => {
         <Route path="/bookings"       element={<Bookings />} />
         <Route path="/about"          element={<About />} />
         <Route path="/auth/confirm"   element={<ConfirmPage />} />
+        <Route path="/forgot-password"     element={<ForgotPassword />} />
+        <Route path="/auth/reset-password" element={<ResetPassword />} />
 
         {/* AUTH */}
         <Route path="/login"    element={<Login />} />
