@@ -110,7 +110,7 @@ const Login = () => {
             </div>
 
             {/* REDUX ERROR (shown only when not mid-submit) */}
-            {error && !submitting && (
+            {error && !submitting && !flashMessage && (
               <div className="bg-red-50 border border-red-100 text-red-500 text-sm px-3 py-2 rounded-xl mb-5">
                 {error}
               </div>
