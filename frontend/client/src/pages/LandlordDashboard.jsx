@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { uploadProfileImage } from "../features/user/userSlice";
 import { useNavigate } from "react-router-dom";
 import { fetchMyHostels, addHostel, removeHostel } from "../features/hostels/hostelSlice";
 import api from "../api/axios";
@@ -491,6 +492,13 @@ const LandlordDashboard = () => {
   const [editingHostel, setEditingHostel] = useState(null);
   const [toast,         setToast]         = useState(null);
 
+  const fileRef = useRef(null);
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) dispatch(uploadProfileImage(file));
+  };
+
   const hostelList = hostels ?? [];
 
   const totalHostels  = hostelList.length;
@@ -583,7 +591,7 @@ const LandlordDashboard = () => {
           ) : (
             <div className="bg-white border border-gray-100 rounded-2xl p-6 mb-6">
               <div className="flex items-start gap-5">
-                <div className="shrink-0">
+                <div className="relative shrink-0">
                   {user?.profile_image ? (
                     <img src={user.profile_image} alt="Profile" className="w-14 h-14 rounded-2xl object-cover" />
                   ) : (
@@ -591,6 +599,20 @@ const LandlordDashboard = () => {
                       {initials}
                     </div>
                   )}
+                  <button
+                    onClick={() => fileRef.current?.click()}
+                    className="absolute -bottom-2 -right-2 w-6 h-6 bg-white border border-gray-200 rounded-xl flex items-center justify-center shadow-sm hover:bg-gray-50 transition-colors"
+                    title="Change photo"
+                  >
+                    <span className="text-xs">📷</span>
+                  </button>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={handleImageChange}
+                  />
                 </div>
 
                 <div className="flex-1 min-w-0">
