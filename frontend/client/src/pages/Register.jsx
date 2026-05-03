@@ -3,6 +3,23 @@ import { useNavigate } from "react-router-dom";
 import api from "../api/axios";
 import Footer from "../components/Footer";
 
+const PasswordRule = ({ met, label }) => (
+  <li className={`flex items-center gap-1.5 text-xs transition-colors duration-200 ${met ? "text-green-500" : "text-red-400"}`}>
+    <span className={`flex items-center justify-center w-4 h-4 rounded-full shrink-0 transition-colors duration-200 ${met ? "bg-green-100" : "bg-red-100"}`}>
+      {met ? (
+        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 16 16">
+          <path d="M3 8l3.5 3.5L13 4" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      ) : (
+        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 16 16">
+          <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+        </svg>
+      )}
+    </span>
+    {label}
+  </li>
+);
+
 const Register = () => {
   const navigate = useNavigate();
 
@@ -19,6 +36,18 @@ const Register = () => {
   const [submitting, setSubmitting] = useState(false);
   const [flashMessage, setFlashMessage] = useState(null);
   const [flashType, setFlashType] = useState("success");
+  const [passwordFocused, setPasswordFocused] = useState(false);
+
+  const rules = {
+    minLength:   form.password.length >= 8,
+    hasUpper:    /[A-Z]/.test(form.password),
+    hasLower:    /[a-z]/.test(form.password),
+    hasNumber:   /[0-9]/.test(form.password),
+    hasSpecial:  /[^A-Za-z0-9]/.test(form.password),
+  };
+
+  const passwordValid = Object.values(rules).every(Boolean);
+  const passwordsMatch = form.password === form.confirmPassword && form.confirmPassword !== "";
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -26,6 +55,13 @@ const Register = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!passwordValid) {
+      setFlashType("error");
+      setFlashMessage("Password does not meet all requirements.");
+      setTimeout(() => setFlashMessage(null), 3000);
+      return;
+    }
 
     if (form.password !== form.confirmPassword) {
       setFlashType("error");
@@ -78,7 +114,7 @@ const Register = () => {
               </p>
             </div>
 
-            {/* FLASH MESSAGE — inside the card, above the form */}
+            {/* FLASH MESSAGE */}
             {flashMessage && (
               <div
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium mb-5
@@ -198,13 +234,22 @@ const Register = () => {
                   placeholder="••••••••"
                   value={form.password}
                   onChange={handleChange}
+                  onFocus={() => setPasswordFocused(true)}
                   disabled={submitting}
                   className="w-full mt-1 px-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-400 outline-none disabled:opacity-50"
                   required
                 />
-                <p className="text-xs text-gray-400 mt-1">
-                  Must have uppercase, lowercase, number & special character
-                </p>
+
+                {/* PASSWORD REQUIREMENTS — shown once user starts typing or focuses */}
+                {(passwordFocused || form.password.length > 0) && (
+                  <ul className="mt-2 space-y-1 pl-0.5">
+                    <PasswordRule met={rules.minLength}  label="At least 8 characters" />
+                    <PasswordRule met={rules.hasUpper}   label="One uppercase letter" />
+                    <PasswordRule met={rules.hasLower}   label="One lowercase letter" />
+                    <PasswordRule met={rules.hasNumber}  label="One number" />
+                    <PasswordRule met={rules.hasSpecial} label="One special character" />
+                  </ul>
+                )}
               </div>
 
               {/* CONFIRM PASSWORD */}
@@ -222,6 +267,23 @@ const Register = () => {
                   className="w-full mt-1 px-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 focus:ring-2 focus:ring-blue-400 outline-none disabled:opacity-50"
                   required
                 />
+                {/* MATCH INDICATOR */}
+                {form.confirmPassword.length > 0 && (
+                  <p className={`text-xs mt-1 flex items-center gap-1.5 transition-colors duration-200 ${passwordsMatch ? "text-green-500" : "text-red-400"}`}>
+                    <span className={`flex items-center justify-center w-4 h-4 rounded-full shrink-0 ${passwordsMatch ? "bg-green-100" : "bg-red-100"}`}>
+                      {passwordsMatch ? (
+                        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 16 16">
+                          <path d="M3 8l3.5 3.5L13 4" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      ) : (
+                        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 16 16">
+                          <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+                        </svg>
+                      )}
+                    </span>
+                    {passwordsMatch ? "Passwords match" : "Passwords do not match"}
+                  </p>
+                )}
               </div>
 
               {/* SUBMIT */}
