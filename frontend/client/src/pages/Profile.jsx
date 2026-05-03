@@ -160,9 +160,8 @@ const Profile = () => {
   const [activeTab,     setActiveTab]     = useState("overview");
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [form, setForm] = useState({
-    first_name:   "",
-    last_name:    "",
-    phone_number: "",
+    first_name: "",
+    last_name:  "",
   });
 
   useEffect(() => {
@@ -182,9 +181,8 @@ const Profile = () => {
   useEffect(() => {
     if (profile) {
       setForm({
-        first_name:   profile.first_name   || "",
-        last_name:    profile.last_name     || "",
-        phone_number: profile.phone_number  || "",
+        first_name: profile.first_name || "",
+        last_name:  profile.last_name  || "",
       });
     }
   }, [profile]);
@@ -206,9 +204,7 @@ const Profile = () => {
     (a, b) => new Date(b.created_at) - new Date(a.created_at)
   );
 
-  // ── Normalize role to uppercase for comparison ──
-  const role = profile?.role?.toUpperCase();
-  const isStudent  = role === "STUDENT";
+  const role       = profile?.role?.toUpperCase();
   const isLandlord = role === "LANDLORD";
   const isAdmin    = role === "ADMIN";
 
@@ -239,7 +235,6 @@ const Profile = () => {
 
   const isImageBusy = uploadingImage || deletingImage;
 
-  
   return (
     <>
       <div className="min-h-screen bg-gray-50 pt-24 px-4 pb-16">
@@ -340,15 +335,6 @@ const Profile = () => {
                       className="w-full border border-gray-200 px-4 py-2 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     />
                   </div>
-                  <div className="sm:col-span-2">
-                    <label className="text-xs text-gray-500 uppercase mb-1 block">Phone number</label>
-                    <input
-                      value={form.phone_number}
-                      onChange={(e) => setForm({ ...form, phone_number: e.target.value })}
-                      className="w-full border border-gray-200 px-4 py-2 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                      placeholder="2547XXXXXXXX"
-                    />
-                  </div>
                   <div className="sm:col-span-2 flex justify-end">
                     <button
                       onClick={handleSave}
@@ -363,8 +349,7 @@ const Profile = () => {
             </div>
           )}
 
-          {/* ── LANDLORD BANNER (non-landlord, non-admin only) ── */}
-          {/* CHANGE 2: added profile && so banner only renders once role is known */}
+          {/* ── LANDLORD BANNER ──────────────────────── */}
           {profile && !isLandlord && !isAdmin && (
             <LandlordBanner request={latestRequest} loading={requestsLoading} />
           )}
