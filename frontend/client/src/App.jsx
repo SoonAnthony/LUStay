@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/react";
 import { useEffect } from "react";
 import {
   BrowserRouter as Router,
@@ -415,6 +416,7 @@ const AppContent = () => {
 const App = () => (
   <Router>
     <AppContent />
+    <Analytics />
   </Router>
 );
 
