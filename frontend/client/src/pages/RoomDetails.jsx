@@ -21,6 +21,8 @@ const RoomDetails = () => {
   const location = useLocation();
 
   const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
+  const userRole = useSelector((state) => state.auth.user?.role?.toUpperCase());
+  const isStudent = userRole === "STUDENT";
 
   const [room, setRoom] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -190,7 +192,7 @@ const RoomDetails = () => {
           </div>
 
           {/* BOOKING FORM — only shown when truly bookable */}
-          {isBookable && (
+          {isBookable && isStudent &&  (
             <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-6">
               <p className="text-xs text-gray-400 mb-3 uppercase tracking-wide">
                 Booking details
@@ -236,23 +238,29 @@ const RoomDetails = () => {
 
           {/* BUTTON */}
           <div className="mt-6">
-            <button
-              onClick={handleBooking}
-              disabled={!isBookable || bookingLoading}
-              className={`w-full py-3 rounded-2xl text-sm font-medium transition-all duration-200
-                ${isBookable
-                  ? "bg-blue-500 hover:bg-blue-600 text-white shadow-sm hover:shadow-md"
-                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                }`}
-            >
-              {bookingLoading
-                ? "Processing payment..."
-                : isBookable
-                ? "Reserve & Pay Deposit"
-                : isMaintenance
-                ? "Under Maintenance"
-                : "Unavailable"}
-            </button>
+            {isStudent ? (
+              <button
+                onClick={handleBooking}
+                disabled={!isBookable || bookingLoading}
+                className={`w-full py-3 rounded-2xl text-sm font-medium transition-all duration-200
+                  ${isBookable
+                    ? "bg-blue-500 hover:bg-blue-600 text-white shadow-sm hover:shadow-md"
+                    : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                  }`}
+              >
+                {bookingLoading
+                  ? "Processing payment..."
+                  : isBookable
+                  ? "Reserve & Pay Deposit"
+                  : isMaintenance
+                  ? "Under Maintenance"
+                  : "Unavailable"}
+              </button>
+            ) : (
+              <div className="w-full py-3 rounded-2xl text-sm font-medium text-center bg-gray-100 text-gray-400 border border-gray-200">
+                Landlords cannot make bookings
+              </div>
+            )}
           </div>
 
         </div>

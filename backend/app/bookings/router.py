@@ -19,7 +19,7 @@ from app.bookings.service import (
 from app.rooms.models import Room
 from app.hostels.models import Hostel
 from app.user.models import User
-from app.user.dependencies import get_current_active_user, get_current_landlord_or_admin
+from app.user.dependencies import get_current_active_user, get_current_landlord_or_admin, require_student
 from app.payments.service import initiate_payment_logic
 
 
@@ -30,7 +30,7 @@ bookings_router = APIRouter(prefix="/bookings", tags=["Bookings"])
 async def create_reservation(
     request: ReservationCreate,
     session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(require_student),
 ):
     """Create a reservation and initiate M-Pesa payment."""
     try:

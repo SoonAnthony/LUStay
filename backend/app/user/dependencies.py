@@ -84,3 +84,13 @@ async def get_current_landlord_or_admin(
             detail="Only landlords or admins are allowed to perform this action"
         )
     return current_user
+
+async def require_student(
+    current_user: User = Depends(get_current_active_user)
+) -> User:
+    if current_user.role != UserRole.STUDENT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only students can make bookings"
+        )
+    return current_user
