@@ -336,7 +336,7 @@ class UserService:
             type=TokenType.PASSWORD_RESET,
             expires_minutes=30
         )
-        link = f"{settings.FRONTEND_URL}/auth/confirm?token={token}"  # ✅ same confirm endpoint
+        link = f"{settings.FRONTEND_URL}/auth/reset-password?token={token}"
 
         mailer = MailService(
             settings.BREVO_API_KEY,
