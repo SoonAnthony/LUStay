@@ -52,7 +52,7 @@ async def upload_profile_image(
     await session.commit()
     await session.refresh(current_user)
 
-    return UserSchema.model_validate(current_user)
+    return UserSelfSchema.model_validate(current_user)
 
 
 @profile_image_router.delete("/me/profile-image", response_model=UserSelfSchema)
@@ -75,4 +75,4 @@ async def delete_profile_image(
     await session.commit()
     await session.refresh(current_user)
 
-    return UserSchema.model_validate(current_user)
+    return UserSelfSchema.model_validate(current_user)
