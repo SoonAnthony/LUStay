@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { HiOutlineMail, HiOutlinePhone } from "react-icons/hi";
 import { FaTwitter, FaInstagram, FaLinkedinIn } from "react-icons/fa";
-import logo from "../assets/images/LUStay_logo.png";
+import logo from "../assets/images/LUStay_logo.webp";
 
 const LINKS = {
   Platform: [
