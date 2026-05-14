@@ -101,18 +101,6 @@ Allow: /
 Disallow: /admin
 Disallow: /api/
 
-Sitemap: https://lustay.onrender.com/sitemap.xml"""
-    return Response(content=content, media_type="text/plain")
-
-
-# ── ROBOTS.TXT ────────────────────────────────────────────────
-@app.get("/robots.txt", include_in_schema=False)
-async def robots():
-    content = """User-agent: *
-Allow: /
-Disallow: /admin
-Disallow: /api/
-
 Sitemap: https://lustay.vercel.app/sitemap.xml"""
     return Response(content=content, media_type="text/plain")
 
