@@ -4,7 +4,7 @@ const getOptimizedUrl = (url, width = 800) => {
   if (!url || !url.includes("cloudinary.com")) return url;
   return url.replace(
     "/upload/",
-    `/upload/f_auto,q_auto,w_${width},c_fill/`
+    `/upload/f_auto,q_auto:good,w_${width},c_fill/`
   );
 };
 
@@ -22,6 +22,7 @@ const CloudinaryImage = ({
   width = 800,
   className = "",
   style = {},
+  priority = false,
 }) => {
   const [loaded, setLoaded] = useState(false);
 
@@ -49,7 +50,8 @@ const CloudinaryImage = ({
       <img
         src={optimizedSrc}
         alt={alt}
-        loading="lazy"
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : "auto"}
         onLoad={() => setLoaded(true)}
         className={className}
         style={{
