@@ -1,5 +1,6 @@
 import { Helmet } from "react-helmet-async";
 import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 import { useEffect } from "react";
 import {
   BrowserRouter as Router,
@@ -260,8 +261,8 @@ const SessionSkeleton = () => {
   if (pathname === "/bookings")                    return <BookingsSkeleton />;
   if (pathname === "/login")                       return <LoginSkeleton />;
   if (pathname === "/register")                    return <LoginSkeleton />;
-  if (pathname === "/forgot-password")             return <LoginSkeleton />;  // ✅
-  if (pathname === "/auth/reset-password")         return <LoginSkeleton />;  // ✅
+  if (pathname === "/forgot-password")             return <LoginSkeleton />;
+  if (pathname === "/auth/reset-password")         return <LoginSkeleton />;
   if (pathname === "/profile")                     return <DashboardSkeleton />;
   if (pathname.startsWith("/landlord"))            return <DashboardSkeleton />;
   if (pathname.startsWith("/admin"))               return <AdminSkeleton />;
@@ -324,16 +325,12 @@ const AppContent = () => {
         <meta name="description" content="Book verified, affordable student hostels near your university in Kenya. Safe accommodation made simple." />
         <meta name="theme-color" content="#3b82f6" />
         <link rel="canonical" href="https://lustay.vercel.app/" />
-
-        {/* Open Graph */}
         <meta property="og:site_name" content="LUStay" />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://lustay.vercel.app/" />
         <meta property="og:title" content="LUStay — Find Student Hostels in Kenya" />
         <meta property="og:description" content="Book verified, affordable student hostels near your university in Kenya." />
         <meta property="og:image" content="https://lustay.vercel.app/og-image.jpg" />
-
-        {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="LUStay — Find Student Hostels in Kenya" />
         <meta name="twitter:description" content="Book verified, affordable student hostels near your university in Kenya." />
@@ -354,7 +351,7 @@ const AppContent = () => {
         <Route path="/about"          element={<About />} />
         <Route path="/auth/confirm"   element={<ConfirmPage />} />
 
-        {/* FORGOT / RESET PASSWORD — no auth needed */}
+        {/* FORGOT / RESET PASSWORD */}
         <Route path="/forgot-password"     element={<ForgotPassword />} />
         <Route path="/auth/reset-password" element={<ResetPassword />} />
 
@@ -384,7 +381,7 @@ const AppContent = () => {
           element={user ? <PaymentStatus /> : <Navigate to="/login" replace />}
         />
 
-        {/* ACCOUNT CHANGE ROUTES (any authenticated user) */}
+        {/* ACCOUNT CHANGE ROUTES */}
         <Route
           path="/account/change-email"
           element={
@@ -442,6 +439,7 @@ const App = () => (
   <Router>
     <AppContent />
     <Analytics />
+    <SpeedInsights />
   </Router>
 );
 

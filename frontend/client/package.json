@@ -13,6 +13,7 @@
     "@reduxjs/toolkit": "^2.11.2",
     "@tailwindcss/postcss": "^4.2.2",
     "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "axios": "^1.15.0",
     "jspdf": "^4.2.1",
     "jwt-decode": "^4.0.0",
