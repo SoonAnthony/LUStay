@@ -105,22 +105,32 @@ Sitemap: https://lustay.onrender.com/sitemap.xml"""
     return Response(content=content, media_type="text/plain")
 
 
+# ── ROBOTS.TXT ────────────────────────────────────────────────
+@app.get("/robots.txt", include_in_schema=False)
+async def robots():
+    content = """User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: https://lustay.vercel.app/sitemap.xml"""
+    return Response(content=content, media_type="text/plain")
+
+
 # ── SITEMAP ───────────────────────────────────────────────────
 @app.get("/sitemap.xml", include_in_schema=False)
 async def sitemap():
     today = datetime.utcnow().date()
 
-    # Static pages
     static_urls = [
         ("https://lustay.vercel.app/",        "1.0", "weekly"),
-        ("https://lustay.vercel.app/hostels", "0.9", "daily"),
-        ("https://lustay.vercel.app/about",   "0.7", "monthly"),
+        ("https://lustay.vercel.app/hostels",  "0.9", "daily"),
+        ("https://lustay.vercel.app/about",    "0.7", "monthly"),
     ]
 
     xml = '<?xml version="1.0" encoding="UTF-8"?>'
     xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
 
-    # Static URLs
     for url, priority, changefreq in static_urls:
         xml += f"""
   <url>
@@ -130,7 +140,6 @@ async def sitemap():
     <priority>{priority}</priority>
   </url>"""
 
-    # Dynamic hostel URLs — only APPROVED, non-deleted hostels
     try:
         async with AsyncSession(engine) as session:
             result = await session.execute(
@@ -154,9 +163,12 @@ async def sitemap():
   </url>"""
 
     except Exception as e:
-        # Don't break sitemap if DB query fails — static URLs still return
         print(f"Sitemap DB error: {e}")
 
     xml += "\n</urlset>"
 
-    return Response(content=xml, media_type="application/xml")
+    return Response(
+        content=xml,
+        media_type="application/xml",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
