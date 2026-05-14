@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Search } from "lucide-react";
-import heroImage from "../assets/images/hero.png";
+import heroImage from "../assets/images/hero.webp";
 
 const Hero = () => {
   const [query, setQuery] = useState("");
@@ -26,7 +26,6 @@ const Hero = () => {
 
         {/* LEFT SIDE */}
         <div className="text-white text-center md:text-left">
-
           <h1 className="text-4xl md:text-5xl font-bold leading-tight">
             Find Safe & Affordable Hostels Near Laikipia University
           </h1>
@@ -73,6 +72,8 @@ const Hero = () => {
             <img
               src={heroImage}
               alt="Students Hostel"
+              fetchpriority="high"
+              decoding="async"
               className="w-full object-cover rounded-3xl shadow-2xl"
             />
             <div className="absolute inset-0 rounded-3xl bg-linear-to-r from-cyan-800 via-transparent to-transparent opacity-60" />
