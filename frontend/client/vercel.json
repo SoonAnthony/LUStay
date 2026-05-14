@@ -1,12 +1,7 @@
 {
-  "redirects": [
-    {
-      "source": "/sitemap.xml",
-      "destination": "https://lustay.onrender.com/sitemap.xml",
-      "permanent": false
-    }
-  ],
   "rewrites": [
+    { "source": "/sitemap.xml", "destination": "https://lustay.onrender.com/sitemap.xml" },
+    { "source": "/robots.txt", "destination": "https://lustay.onrender.com/robots.txt" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
