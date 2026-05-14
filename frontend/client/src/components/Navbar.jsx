@@ -5,7 +5,7 @@ import {
   User,
   Home,
   Building2,
-  MapPin,       // ✅ location pin for Maps (mobile only)
+  MapPin,      
   CalendarDays,
   Info,
   LogOut,
@@ -14,7 +14,7 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { logoutUser } from "../features/auth/authSlice";
-import logo from "../assets/images/LUStay_logo.png";
+import logo from "../assets/images/LUStay_logo.webp";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
