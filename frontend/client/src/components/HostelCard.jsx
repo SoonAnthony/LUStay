@@ -5,6 +5,7 @@ import {
   HiOutlineTag,
 } from "react-icons/hi";
 import { MdOutlineApartment } from "react-icons/md";
+import CloudinaryImage from "./CloudinaryImage";
 
 const truncate = (text, len) =>
   text?.length > len ? text.substring(0, len) + "..." : text;
@@ -39,10 +40,11 @@ const HostelCard = ({ hostel }) => {
       {/* Image */}
       <div className="relative h-48 overflow-hidden bg-gray-100">
         {coverImage ? (
-          <img
+          <CloudinaryImage
             src={coverImage}
             alt={name}
-            className="w-full h-full object-cover group-hover:scale-110 transition duration-500"
+            width={600}
+            className="group-hover:scale-110 transition duration-500"
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 gap-2">

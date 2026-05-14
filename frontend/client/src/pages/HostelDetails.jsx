@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import api from "../api/axios";
 import Footer from "../components/Footer";
+import CloudinaryImage from "../components/CloudinaryImage";
 
 const SkeletonBlock = ({ h = "h-4", w = "w-full", rounded = "rounded-lg" }) => (
   <div className={`animate-pulse bg-gray-100 ${h} ${w} ${rounded}`}></div>
@@ -112,7 +113,6 @@ const HostelDetails = () => {
 
   const roomTypes = Object.values(roomTypesMap);
 
-  // Build meta values from real hostel data
   const metaTitle = `${hostel.name} — Student Hostel in ${hostel.location} | LUStay`;
   const metaDescription = hostel.description
     ? `${hostel.description.slice(0, 140)}...`
@@ -126,15 +126,11 @@ const HostelDetails = () => {
         <title>{metaTitle}</title>
         <meta name="description" content={metaDescription} />
         <link rel="canonical" href={canonicalUrl} />
-
-        {/* Open Graph */}
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:type" content="website" />
         <meta property="og:title" content={metaTitle} />
         <meta property="og:description" content={metaDescription} />
         <meta property="og:image" content={metaImage} />
-
-        {/* Twitter */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={metaTitle} />
         <meta name="twitter:description" content={metaDescription} />
@@ -157,11 +153,11 @@ const HostelDetails = () => {
 
           {/* HERO IMAGE */}
           {hostel.images?.[0]?.image_url && (
-            <div className="mb-6 relative">
-              <img
+            <div className="mb-6 relative rounded-2xl overflow-hidden" style={{ height: "288px" }}>
+              <CloudinaryImage
                 src={hostel.images[0].image_url}
                 alt={hostel.name}
-                className="w-full h-72 object-cover rounded-2xl"
+                width={1200}
               />
               {hostel.is_featured && (
                 <span className="absolute top-3 left-3 bg-blue-500 text-white text-xs font-medium px-3 py-1 rounded-full">
@@ -220,11 +216,13 @@ const HostelDetails = () => {
                   className="bg-white border border-gray-100 rounded-2xl overflow-hidden"
                 >
                   {type.images?.[0]?.image_url && (
-                    <img
-                      src={type.images[0].image_url}
-                      alt={type.name}
-                      className="w-full h-44 object-cover"
-                    />
+                    <div style={{ height: "176px" }} className="overflow-hidden">
+                      <CloudinaryImage
+                        src={type.images[0].image_url}
+                        alt={type.name}
+                        width={600}
+                      />
+                    </div>
                   )}
                   <div className="p-5">
                     <div className="flex justify-between items-start mb-1">

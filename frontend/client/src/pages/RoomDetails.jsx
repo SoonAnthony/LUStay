@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import api from "../api/axios";
 import Footer from "../components/Footer";
+import CloudinaryImage from "../components/CloudinaryImage";
 
 const SkeletonBlock = ({ h = "h-4", w = "w-full" }) => (
   <div className={`animate-pulse bg-gray-100 ${h} ${w} rounded-lg`} />
@@ -80,7 +81,6 @@ const RoomDetails = () => {
     );
   }
 
-  // ✅ Only AVAILABLE and PARTIALLY_OCCUPIED are bookable
   const isMaintenance   = room.status === "MAINTENANCE";
   const isFullyOccupied = room.status === "FULLY_OCCUPIED";
   const isBookable      = !isMaintenance && !isFullyOccupied;
@@ -137,11 +137,11 @@ const RoomDetails = () => {
 
           {/* IMAGE */}
           {room.room_type?.images?.[0]?.image_url && (
-            <div className="mb-4">
-              <img
+            <div className="mb-4 rounded-2xl overflow-hidden" style={{ height: "256px" }}>
+              <CloudinaryImage
                 src={room.room_type.images[0].image_url}
                 alt="Room"
-                className="w-full h-64 object-cover rounded-2xl"
+                width={1000}
               />
             </div>
           )}
@@ -191,8 +191,8 @@ const RoomDetails = () => {
             )}
           </div>
 
-          {/* BOOKING FORM — only shown when truly bookable */}
-          {isBookable && isStudent &&  (
+          {/* BOOKING FORM */}
+          {isBookable && isStudent && (
             <div className="bg-white border border-gray-100 rounded-2xl p-5 mb-6">
               <p className="text-xs text-gray-400 mb-3 uppercase tracking-wide">
                 Booking details
@@ -227,7 +227,7 @@ const RoomDetails = () => {
                 </label>
                 <input
                   type="text"
-                  placeholder="2547XXXXXXXX or 2541XXXXXXXX"
+                  placeholder="07xx or 2547XX or 2541XX"
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   className="w-full border border-gray-200 px-4 py-2 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
