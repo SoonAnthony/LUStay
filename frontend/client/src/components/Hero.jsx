@@ -72,8 +72,9 @@ const Hero = () => {
             <img
               src={heroImage}
               alt="Students Hostel"
-              fetchpriority="high"
+              fetchPriority="high"
               decoding="async"
+              loading="eager"
               className="w-full object-cover rounded-3xl shadow-2xl"
             />
             <div className="absolute inset-0 rounded-3xl bg-linear-to-r from-cyan-800 via-transparent to-transparent opacity-60" />
