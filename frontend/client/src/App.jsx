@@ -1,7 +1,7 @@
 import { Helmet } from "react-helmet-async";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/react";
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -13,27 +13,71 @@ import { useDispatch, useSelector } from "react-redux";
 import { restoreSession } from "./features/auth/authSlice";
 
 import Navbar from "./components/Navbar";
-import Home from "./pages/Home";
-import Hostels from "./pages/Hostels";
-import Maps from "./pages/Maps";
-import Bookings from "./pages/Bookings";
-import About from "./pages/About";
-import HostelDetails from "./pages/HostelDetails";
-import RoomTypeDetails from "./pages/RoomTypeDetails";
-import RoomDetails from "./pages/RoomDetails";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import PaymentStatus from "./pages/PaymentStatus";
-import Profile from "./pages/Profile";
-import ConfirmPage from "./pages/ConfirmPage";
-import BecomeLandlord from "./pages/BecomeLandlord";
-import LandlordDashboard from "./pages/LandlordDashboard";
-import ChangeEmail from "./pages/ChangeEmail";
-import ChangePassword from "./pages/ChangePassword";
-import ChangePhone from "./pages/ChangePhone";
-import AdminDashboard from "./pages/Admindashboard";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword  from "./pages/ResetPassword";
+
+// ── LAZY PAGE IMPORTS ─────────────────────────────────────────
+const Home              = lazy(() => import("./pages/Home"));
+const Hostels           = lazy(() => import("./pages/Hostels"));
+const Maps              = lazy(() => import("./pages/Maps"));
+const Bookings          = lazy(() => import("./pages/Bookings"));
+const About             = lazy(() => import("./pages/About"));
+const HostelDetails     = lazy(() => import("./pages/HostelDetails"));
+const RoomTypeDetails   = lazy(() => import("./pages/RoomTypeDetails"));
+const RoomDetails       = lazy(() => import("./pages/RoomDetails"));
+const Login             = lazy(() => import("./pages/Login"));
+const Register          = lazy(() => import("./pages/Register"));
+const PaymentStatus     = lazy(() => import("./pages/PaymentStatus"));
+const Profile           = lazy(() => import("./pages/Profile"));
+const ConfirmPage       = lazy(() => import("./pages/ConfirmPage"));
+const BecomeLandlord    = lazy(() => import("./pages/BecomeLandlord"));
+const LandlordDashboard = lazy(() => import("./pages/LandlordDashboard"));
+const ChangeEmail       = lazy(() => import("./pages/ChangeEmail"));
+const ChangePassword    = lazy(() => import("./pages/ChangePassword"));
+const ChangePhone       = lazy(() => import("./pages/ChangePhone"));
+const AdminDashboard    = lazy(() => import("./pages/Admindashboard"));
+const ForgotPassword    = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword     = lazy(() => import("./pages/ResetPassword"));
+
+// ── PREFETCH MAP ──────────────────────────────────────────────
+// Keys are route prefixes; values are factory fns that kick off the import.
+// The browser fetches the chunk in the background; by the time the user
+// clicks the link, the module is already cached.
+const PREFETCH_MAP = {
+  "/":              [
+    () => import("./pages/Hostels"),
+    () => import("./pages/Login"),
+  ],
+  "/hostels":       [
+    () => import("./pages/HostelDetails"),
+    () => import("./pages/RoomTypeDetails"),
+  ],
+  "/login":         [
+    () => import("./pages/Register"),
+    () => import("./pages/ForgotPassword"),
+  ],
+  "/register":      [() => import("./pages/Login")],
+  "/forgot-password": [() => import("./pages/ResetPassword")],
+  "/profile":       [
+    () => import("./pages/Bookings"),
+    () => import("./pages/BecomeLandlord"),
+  ],
+  "/bookings":      [() => import("./pages/HostelDetails")],
+  "/landlord/dashboard": [() => import("./pages/HostelDetails")],
+};
+
+// Runs once after auth is ready; schedules prefetches when the main thread
+// is idle so they never compete with the current page's paint.
+const schedulePrefetches = (pathname) => {
+  const idle = window.requestIdleCallback ?? ((cb) => setTimeout(cb, 200));
+
+  // Match the longest prefix that applies to the current path
+  const key = Object.keys(PREFETCH_MAP)
+    .filter((k) => pathname === k || (k !== "/" && pathname.startsWith(k)))
+    .sort((a, b) => b.length - a.length)[0];
+
+  if (!key) return;
+
+  PREFETCH_MAP[key].forEach((factory) => idle(() => factory()));
+};
 
 // ── SKELETON PRIMITIVES ───────────────────────────────────────
 const Bone = ({ h = "h-4", w = "w-full", r = "rounded-lg" }) => (
@@ -308,10 +352,19 @@ const AdminRoute = ({ user, children }) => {
 const AppContent = () => {
   const dispatch = useDispatch();
   const { user, authReady } = useSelector((s) => s.auth);
+  const { pathname } = useLocation();
 
   useEffect(() => {
     dispatch(restoreSession());
   }, [dispatch]);
+
+  // Schedule prefetches once auth is resolved so they don't compete
+  // with the current page's initial render
+  useEffect(() => {
+    if (authReady) {
+      schedulePrefetches(pathname);
+    }
+  }, [authReady, pathname]);
 
   if (!authReady) return <SessionSkeleton />;
 
@@ -339,97 +392,100 @@ const AppContent = () => {
 
       <Navbar />
 
-      <Routes>
-        {/* PUBLIC */}
-        <Route path="/"               element={<Home />} />
-        <Route path="/hostels"        element={<Hostels />} />
-        <Route path="/hostels/:id"    element={<HostelDetails />} />
-        <Route path="/room-types/:id" element={<RoomTypeDetails />} />
-        <Route path="/rooms/:id"      element={<RoomDetails />} />
-        <Route path="/maps"           element={<Maps />} />
-        <Route path="/bookings"       element={<Bookings />} />
-        <Route path="/about"          element={<About />} />
-        <Route path="/auth/confirm"   element={<ConfirmPage />} />
+      {/* Suspense uses the same route-aware skeleton while lazy chunks load */}
+      <Suspense fallback={<SessionSkeleton />}>
+        <Routes>
+          {/* PUBLIC */}
+          <Route path="/"               element={<Home />} />
+          <Route path="/hostels"        element={<Hostels />} />
+          <Route path="/hostels/:id"    element={<HostelDetails />} />
+          <Route path="/room-types/:id" element={<RoomTypeDetails />} />
+          <Route path="/rooms/:id"      element={<RoomDetails />} />
+          <Route path="/maps"           element={<Maps />} />
+          <Route path="/bookings"       element={<Bookings />} />
+          <Route path="/about"          element={<About />} />
+          <Route path="/auth/confirm"   element={<ConfirmPage />} />
 
-        {/* FORGOT / RESET PASSWORD */}
-        <Route path="/forgot-password"     element={<ForgotPassword />} />
-        <Route path="/auth/reset-password" element={<ResetPassword />} />
+          {/* FORGOT / RESET PASSWORD */}
+          <Route path="/forgot-password"     element={<ForgotPassword />} />
+          <Route path="/auth/reset-password" element={<ResetPassword />} />
 
-        {/* AUTH */}
-        <Route path="/login"    element={<Login />} />
-        <Route path="/register" element={<Register />} />
+          {/* AUTH */}
+          <Route path="/login"    element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
-        {/* STUDENT ONLY */}
-        <Route
-          path="/profile"
-          element={
-            <StudentRoute user={user}>
-              <Profile />
-            </StudentRoute>
-          }
-        />
-        <Route
-          path="/become-landlord"
-          element={
-            <StudentRoute user={user}>
-              <BecomeLandlord />
-            </StudentRoute>
-          }
-        />
-        <Route
-          path="/payments/:id"
-          element={user ? <PaymentStatus /> : <Navigate to="/login" replace />}
-        />
+          {/* STUDENT ONLY */}
+          <Route
+            path="/profile"
+            element={
+              <StudentRoute user={user}>
+                <Profile />
+              </StudentRoute>
+            }
+          />
+          <Route
+            path="/become-landlord"
+            element={
+              <StudentRoute user={user}>
+                <BecomeLandlord />
+              </StudentRoute>
+            }
+          />
+          <Route
+            path="/payments/:id"
+            element={user ? <PaymentStatus /> : <Navigate to="/login" replace />}
+          />
 
-        {/* ACCOUNT CHANGE ROUTES */}
-        <Route
-          path="/account/change-email"
-          element={
-            <AuthRoute user={user}>
-              <ChangeEmail />
-            </AuthRoute>
-          }
-        />
-        <Route
-          path="/account/change-password"
-          element={
-            <AuthRoute user={user}>
-              <ChangePassword />
-            </AuthRoute>
-          }
-        />
-        <Route
-          path="/account/change-phone"
-          element={
-            <AuthRoute user={user}>
-              <ChangePhone />
-            </AuthRoute>
-          }
-        />
+          {/* ACCOUNT CHANGE ROUTES */}
+          <Route
+            path="/account/change-email"
+            element={
+              <AuthRoute user={user}>
+                <ChangeEmail />
+              </AuthRoute>
+            }
+          />
+          <Route
+            path="/account/change-password"
+            element={
+              <AuthRoute user={user}>
+                <ChangePassword />
+              </AuthRoute>
+            }
+          />
+          <Route
+            path="/account/change-phone"
+            element={
+              <AuthRoute user={user}>
+                <ChangePhone />
+              </AuthRoute>
+            }
+          />
 
-        {/* LANDLORD ONLY */}
-        <Route
-          path="/landlord/dashboard"
-          element={
-            <LandlordRoute user={user}>
-              <LandlordDashboard />
-            </LandlordRoute>
-          }
-        />
+          {/* LANDLORD ONLY */}
+          <Route
+            path="/landlord/dashboard"
+            element={
+              <LandlordRoute user={user}>
+                <LandlordDashboard />
+              </LandlordRoute>
+            }
+          />
 
-        {/* ADMIN ONLY */}
-        <Route
-          path="/admin/dashboard"
-          element={
-            <AdminRoute user={user}>
-              <AdminDashboard />
-            </AdminRoute>
-          }
-        />
+          {/* ADMIN ONLY */}
+          <Route
+            path="/admin/dashboard"
+            element={
+              <AdminRoute user={user}>
+                <AdminDashboard />
+              </AdminRoute>
+            }
+          />
 
-        {/* FALLBACK */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* FALLBACK */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </>
   );
 };
