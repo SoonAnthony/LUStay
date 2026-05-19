@@ -49,10 +49,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-# ✅ Security headers
-app.add_middleware(SecurityHeadersMiddleware)
-
-# ✅ CORS
+# ✅ CORS added first (executes last = closest to routes)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "https://lustay.vercel.app"],
@@ -60,6 +57,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ✅ Security headers added second (executes first = outermost layer)
+app.add_middleware(SecurityHeadersMiddleware)
+
 
 # ── ROUTERS ───────────────────────────────────────────────────
 api_v1_router = APIRouter(prefix="/api/v1")
