@@ -98,9 +98,10 @@ async def health():
 @app.get("/robots.txt", include_in_schema=False)
 async def robots():
     content = """User-agent: *
-Allow: /
-Disallow: /admin
+Allow: /api/v1/hostels/
+Allow: /api/v1/hostels/*
 Disallow: /api/
+Disallow: /admin/
 
 Sitemap: https://lustay.vercel.app/sitemap.xml"""
     return Response(content=content, media_type="text/plain")
